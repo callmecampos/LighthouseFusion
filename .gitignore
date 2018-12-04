@@ -1,0 +1,11 @@
+# ignore all .klg files
+*.klg
+
+# ignore all .gz, .zip, .tar
+*.gz
+*.zip
+*.tar
+
+# ignore sub-repos
+ElasticFusion
+png_to_klg
