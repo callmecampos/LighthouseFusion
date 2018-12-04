@@ -1,5 +1,5 @@
 # Lighthouse-SLAM
-High Accuracy and Fidelity Real-time 3D SLAM using Inertial Data and Lighthouse-Localization Based Pose Estimation
+High accuracy and fidelity real-time dense visual SLAM using inertial data and lighthouse-localization based low-drift pose estimation
 
 ## Dependencies
 
