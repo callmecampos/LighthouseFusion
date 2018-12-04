@@ -11,9 +11,8 @@ import pyrealsense2 as rs
 import numpy as np
 # Import OpenCV for easy image rendering
 import cv2
-import traceback
-import os
-import argparse
+import os, traceback, sys, argparse
+
 class cd:
     """Context manager for changing the current working directory"""
     def __init__(self, newPath):
@@ -25,24 +24,27 @@ class cd:
 
     def __exit__(self, etype, value, traceback):
         os.chdir(self.savedPath)
+
 def main():
-
-    
-
-
     # Streaming loop
     try:
         if not os.path.exists(args.directory):
             os.mkdir(args.directory)
             os.mkdir(args.directory+"/rgb/")
-            os.mkdir(args.directory+"/depth/")        
+            os.mkdir(args.directory+"/depth/")
+        else:
+            if not os.path.exists(args.directory+"/rgb/"):
+                os.mkdir(args.directory+"/rgb/")
+            if not os.path.exists(args.directory+"/depth/"):
+                os.mkdir(args.directory+"/depth/")
+      
         # Create a pipeline
         pipeline = rs.pipeline()
 
-        #Create a config and configure the pipeline to stream
+        # Create a config and configure the pipeline to stream
         #  different resolutions of color and depth streams
         config = rs.config()
-        rs.config.enable_device_from_file(config, args.input, False )
+        rs.config.enable_device_from_file(config, args.input, False)
         config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
         config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
 
@@ -92,7 +94,6 @@ def main():
             
 
             with open(args.directory + '/associations.txt', 'a+') as f:
-#                f.write(str(i) + ' ' + args.directory + '/depth/' + str(i).zfill(5) +ext+ ' ' + str(i) + ' ' + args.directory + "/rgb/" + str(i).zfill(5) + ext+ "\n")
                 f.write(str(i) + ' ' + './depth/' + str(i).zfill(5) +ext+ ' ' + str(i) + ' ' + "./rgb/" + str(i).zfill(5) + ext+ "\n")
             
             # Remove background - Set pixels further than clipping_distance to grey
@@ -110,16 +111,25 @@ def main():
             if key & 0xFF == ord('q') or key == 27:
                 cv2.destroyAllWindows()
                 break
-            i+=1
-    with cd()
-            
+            i += 1
     finally:
-        traceback.print_exc()
+        cv2.destroyAllWindows()
+        # traceback.print_exc()
+        with cd(sys.path[0] + '/png_to_klg/build'):
+            print(sys.path[0] + '/png_to_klg/build')
+            print(os.system('ls'))
+            os.system('./pngtoklg -w ' + args.directory + '/ -o ' + args.directory + '/realsense.klg')
+
+        if args.elastic:
+            with cd(sys.path[0] + '/ElasticFusion/GUI/build'):
+                os.system('./ElasticFusion -l ' + args.directory + '/realsense.klg')
         #pipeline.stop()
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", "--directory", type=str, help="Path to save the images")
     parser.add_argument("-i", "--input", type=str, help="Bag file to read")
+    parser.add_argument("-e", "--elastic", help='Run ElasticFusion flag', action='store_true')
     args = parser.parse_args()
 
     main()
