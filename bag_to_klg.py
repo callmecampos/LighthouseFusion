@@ -114,22 +114,24 @@ def main():
             i += 1
     finally:
         cv2.destroyAllWindows()
-        # traceback.print_exc()
-        with cd(sys.path[0] + '/png_to_klg/build'):
-            print(sys.path[0] + '/png_to_klg/build')
-            print(os.system('ls'))
+        if args.traceback:
+            traceback.print_exc()
+
+        with cd(sys.path[0] + '/png_to_klg/build'): # generate the .klg file
             os.system('./pngtoklg -w ' + args.directory + '/ -o ' + args.directory + '/realsense.klg')
 
-        if args.elastic:
+        if args.elastic: # if flag enabled, run Elastic Fusion on the generated .klg
             with cd(sys.path[0] + '/ElasticFusion/GUI/build'):
                 os.system('./ElasticFusion -l ' + args.directory + '/realsense.klg')
         #pipeline.stop()
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", "--directory", type=str, help="Path to save the images")
     parser.add_argument("-i", "--input", type=str, help="Bag file to read")
     parser.add_argument("-e", "--elastic", help='Run ElasticFusion flag', action='store_true')
+    parser.add_argument("-t", "--traceback", help='Show traceback flag', action='store_true')
     args = parser.parse_args()
 
     main()
