@@ -37,10 +37,7 @@ def find_device_that_supports_advanced_mode() :
     ctx = rs.context()
     ds5_dev = rs.device()
     devices = ctx.query_devices();
-    print(devices)
     for dev in devices:
-        print(dev.supports(rs.camera_info.product_id))
-        print(str(dev.get_info(rs.camera_info.product_id)))
         if dev.supports(rs.camera_info.product_id) and str(dev.get_info(rs.camera_info.product_id)) in DS5_product_ids:
             if dev.supports(rs.camera_info.name):
                 print("Found device that supports advanced mode:", dev.get_info(rs.camera_info.name))
@@ -48,14 +45,12 @@ def find_device_that_supports_advanced_mode() :
     raise Exception("No device that supports advanced mode was found")
 
 def main():
-    # Streaming loop
-    valid_try = False
-    ser= serial.Serial 
-    ser.port= "/dev/ttyAM0" 
-    ser.baudrate=500000
-    ser.open()
+    # Streaming loop   
+    valid_try = False    
     
     try:
+        ser = serial.Serial('/dev/ttyACM0',500000, timeout=.03) 
+        pose_queue = list()
         if not os.path.exists(args.directory):
             os.mkdir(args.directory)
             os.mkdir(args.directory+"/rgb/")
@@ -75,8 +70,8 @@ def main():
         config = rs.config()
         if not args.live: # if not running live, read from bag file
             rs.config.enable_device_from_file(config, args.input, False)
-        config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 60)
-        config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 60)
+        config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
+        config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
 
         if args.live:
             #Enabling advanced mode to load settings from JSON file
@@ -130,11 +125,17 @@ def main():
         i, i0 = 0, 0
         ext = '.png' # '.jpg'
         t0 = time()
+
+    
+        #ser.close()
+        
         while True:
             # Get frameset of color and depth
             frames = pipeline.wait_for_frames()
             # frames.get_depth_frame() is a 640x360 depth image
-            
+
+            pose_queue.insert(i,ser.readline())
+
             # Align the depth frame to color frame
             aligned_frames = align.process(frames)
             
@@ -177,14 +178,21 @@ def main():
 
             if (i % 20 == 0): # reset running average frame-rate params
                 t0, i0 = time(), i
-
-            valid_try = True
+        #saving serial file
+        with open(args.directory + '/ground_truth.txt', 'a+') as f:
+            x=0                
+            for pose in pose_queue:
+                f.write(str(x)+' '+pose)
+                x+=1
+        valid_try = True
     finally:
+        
         cv2.destroyAllWindows()
         if args.traceback:
             traceback.print_exc()
 
         if valid_try and not args.beta:
+            ser.close()
             with cd(sys.path[0] + '/png_to_klg/build'): # generate the .klg file
                 os.system('./pngtoklg -w ' + args.directory + '/ -o ' + args.directory + '/realsense.klg')
 
