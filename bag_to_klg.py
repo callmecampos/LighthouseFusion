@@ -73,7 +73,7 @@ def main():
         config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
         config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
 
-        if not args.live:
+        if args.live:
             #Enabling advanced mode to load settings from JSON file
             dev = find_device_that_supports_advanced_mode()
             advnc_mode = rs.rs400_advanced_mode(dev)
