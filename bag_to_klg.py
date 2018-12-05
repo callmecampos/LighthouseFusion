@@ -1,3 +1,7 @@
+# native python stuff
+from __future__ import print_function
+from time import time
+
 ## License: Apache 2.0. See LICENSE file in root directory.
 ## Copyright(c) 2017 Intel Corporation. All Rights Reserved.
 
@@ -41,10 +45,12 @@ def main():
         # Create a pipeline
         pipeline = rs.pipeline()
 
+
         # Create a config and configure the pipeline to stream
         #  different resolutions of color and depth streams
         config = rs.config()
-        rs.config.enable_device_from_file(config, args.input, False)
+        if not args.live: # if not running live, read from bag file
+            rs.config.enable_device_from_file(config, args.input, False)
         config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
         config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
 
@@ -67,8 +73,9 @@ def main():
         align_to = rs.stream.color
         align = rs.align(align_to)
 
-        i = 0
+        i, i0 = 0, 0
         ext = '.png' # '.jpg'
+        t0 = time()
         while True:
             # Get frameset of color and depth
             frames = pipeline.wait_for_frames()
@@ -91,7 +98,6 @@ def main():
             
             cv2.imwrite(os.path.join(args.directory + "/rgb/" + str(i).zfill(5) + ext), color_image)
             cv2.imwrite(os.path.join(args.directory + "/depth/" + str(i).zfill(5) + ext), depth_image)
-            
 
             with open(args.directory + '/associations.txt', 'a+') as f:
                 f.write(str(i) + ' ' + './depth/' + str(i).zfill(5) +ext+ ' ' + str(i) + ' ' + "./rgb/" + str(i).zfill(5) + ext+ "\n")
@@ -112,6 +118,11 @@ def main():
                 cv2.destroyAllWindows()
                 break
             i += 1
+
+            print('Running frame-rate avg.: {} Hz ({})'.format(float(i-i0) / (time()-t0), i), end='\r')
+
+            if (i % 20 == 0): # reset running average frame-rate params
+                t0, i0 = time(), i
     finally:
         cv2.destroyAllWindows()
         if args.traceback:
@@ -121,9 +132,9 @@ def main():
             os.system('./pngtoklg -w ' + args.directory + '/ -o ' + args.directory + '/realsense.klg')
 
         if args.elastic: # if flag enabled, run Elastic Fusion on the generated .klg
+            print('Running ElasticFusion...')
             with cd(sys.path[0] + '/ElasticFusion/GUI/build'):
                 os.system('./ElasticFusion -l ' + args.directory + '/realsense.klg')
-        #pipeline.stop()
 
 
 if __name__ == "__main__":
@@ -132,6 +143,8 @@ if __name__ == "__main__":
     parser.add_argument("-i", "--input", type=str, help="Bag file to read")
     parser.add_argument("-e", "--elastic", help='Run ElasticFusion flag', action='store_true')
     parser.add_argument("-t", "--traceback", help='Show traceback flag', action='store_true')
+    parser.add_argument("-l", "--live", help="Run on a live RealSense camera", action='store_true')
+
     args = parser.parse_args()
 
     main()
