@@ -50,6 +50,7 @@ def find_device_that_supports_advanced_mode() :
 def main():
     # Streaming loop
     valid_try = False
+    arr = []
     try:
         if not os.path.exists(args.directory):
             os.mkdir(args.directory)
@@ -70,8 +71,8 @@ def main():
         config = rs.config()
         if not args.live: # if not running live, read from bag file
             rs.config.enable_device_from_file(config, args.input, False)
-        config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
-        config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
+        config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 60)
+        config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 60)
 
         if args.live:
             #Enabling advanced mode to load settings from JSON file
@@ -94,7 +95,7 @@ def main():
 
             # Loading controls from a json string
             # For Python 2, the values in 'as_json_object' dict need to be converted from unicode object to utf-8
-            with open(sys.path[0]+"/realsense_params.json") as f:
+            with open(sys.path[0]+"/high_accuracy.json") as f:
                 as_json_object = json.load(f)
             if type(next(iter(as_json_object))) != str:
                 as_json_object = {k.encode('utf-8'): v.encode("utf-8") for k, v in as_json_object.items()}
@@ -145,6 +146,8 @@ def main():
             depth_image = np.asanyarray(aligned_depth_frame.get_data())
             color_image = np.asanyarray(color_frame.get_data())
             
+            # arr.append((depth_image, color_image))
+
             cv2.imwrite(os.path.join(args.directory + "/rgb/" + str(i).zfill(5) + ext), color_image)
             cv2.imwrite(os.path.join(args.directory + "/depth/" + str(i).zfill(5) + ext), depth_image)
 
@@ -176,10 +179,12 @@ def main():
             valid_try = True
     finally:
         cv2.destroyAllWindows()
-        if args.traceback:
+        if not valid_try or args.traceback:
             traceback.print_exc()
 
-        if valid_try:
+        print(arr)
+
+        if valid_try and not args.beta:
             with cd(sys.path[0] + '/png_to_klg/build'): # generate the .klg file
                 os.system('./pngtoklg -w ' + args.directory + '/ -o ' + args.directory + '/realsense.klg')
 
@@ -196,6 +201,7 @@ if __name__ == "__main__":
     parser.add_argument("-e", "--elastic", help='Run ElasticFusion flag', action='store_true')
     parser.add_argument("-t", "--traceback", help='Show traceback flag', action='store_true')
     parser.add_argument("-l", "--live", help="Run on a live RealSense camera", action='store_true')
+    parser.add_argument("-b", "--beta", help="Testing flag", action='store_true')
 
     args = parser.parse_args()
 
