@@ -51,6 +51,9 @@ void setup(void)
   bno.setExtCrystalUse(true);
 
   Serial.println("Calibration status values: 0=uncalibrated, 3=fully calibrated");
+    /* Display calibration status for each sensor. */
+  uint8_t system, gyro, accel, mag = 0;
+  Serial.println("x, y, z, qx, qy, qz, qw, gyro, acce, mag ");
 }
 
 /**************************************************************************/
@@ -68,40 +71,43 @@ void loop(void)
   // - VECTOR_EULER         - degrees
   // - VECTOR_LINEARACCEL   - m/s^2
   // - VECTOR_GRAVITY       - m/s^2
+  uint8_t system, gyro, accel, mag = 0;
   imu::Vector<3> lin = bno.getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
-
-  /* Display the floating point data */
-  Serial.print("X: ");
-  Serial.print(lin.x());
-  Serial.print(" Y: ");
-  Serial.print(lin.y());
-  Serial.print(" Z: ");
-  Serial.print(lin.z());
-  Serial.print("\t\t");
-
   // Quaternion data
   imu::Quaternion quat = bno.getQuat();
-  Serial.print("qW: ");
-  Serial.print(quat.w(), 4);
-  Serial.print(" qX: ");
-  Serial.print(quat.y(), 4);
-  Serial.print(" qY: ");
-  Serial.print(quat.x(), 4);
-  Serial.print(" qZ: ");
-  Serial.print(quat.z(), 4);
-  Serial.print("\t\t");
-
-  /* Display calibration status for each sensor. */
-  uint8_t system, gyro, accel, mag = 0;
   bno.getCalibration(&system, &gyro, &accel, &mag);
-  Serial.print("CALIBRATION: Sys=");
-  Serial.print(system, DEC);
-  Serial.print(" Gyro=");
-  Serial.print(gyro, DEC);
-  Serial.print(" Accel=");
-  Serial.print(accel, DEC);
-  Serial.print(" Mag=");
-  Serial.println(mag, DEC);
+  /* Display the floating point data */
+  //Serial.print("X: ");
+  Serial.printf("% 08.3f, % 08.3f, % 08.3f\t% 015.12f, % 015.12f, % 015.12f, % 015.12f,\t %i, %i, %i\n",lin.x(),lin.y(),lin.z(),quat.x(),quat.y(),quat.z(),quat.w(),gyro,accel,mag);
+//  Serial.print("X: ");
+//  Serial.print(lin.x());
+//  Serial.print(" Y: ");
+//  Serial.print(lin.y());
+//  Serial.print(" Z: ");
+//  Serial.print(lin.z());
+//  Serial.print("\t\t");
+
+
+//  //Serial.print("qW: ");
+//  Serial.print(quat.w(), 4);
+// // Serial.print(" qX: ");
+//  Serial.print(quat.y(), 4);
+//  //Serial.print(" qY: ");
+//  Serial.print(quat.x(), 4);
+//  //Serial.print(" qZ: ");
+//  Serial.print(quat.z(), 4);
+//  Serial.print("\t\t");
+
+
+ // bno.getCalibration(&system, &gyro, &accel, &mag);
+  //Serial.print("CALIBRATION: Sys=");
+ // Serial.print(system, DEC);
+  //Serial.print(" Gyro=");
+//  Serial.print(gyro, DEC);
+//  //Serial.print(" Accel=");
+//  Serial.print(accel, DEC);
+//  //Serial.print(" Mag=");
+//  Serial.println(mag, DEC);
 
   delay(BNO055_SAMPLERATE_DELAY_MS);
 }
