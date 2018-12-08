@@ -15,7 +15,8 @@ import pyrealsense2 as rs
 import numpy as np
 # Import OpenCV for easy image rendering
 import cv2
-import os, traceback, sys, argparse, json
+# General OS, parameter parsing, and debugging
+import os, traceback, sys, argparse, json, collections
 
 class cd:
     """Context manager for changing the current working directory"""
@@ -28,8 +29,6 @@ class cd:
 
     def __exit__(self, etype, value, traceback):
         os.chdir(self.savedPath)
-
-
 
 DS5_product_ids = ["0AD1", "0AD2", "0AD3", "0AD4", "0AD5", "0AF6", "0AFE", "0AFF", "0B00", "0B01", "0B03", "0B07"]
 
@@ -48,8 +47,6 @@ def find_device_that_supports_advanced_mode() :
     raise Exception("No device that supports advanced mode was found")
 
 def main():
-    
-
     # Streaming loop
     valid_try = False
     arr = []
@@ -64,6 +61,10 @@ def main():
                     os.mkdir(args.directory+"/rgb/")
                 if not os.path.exists(args.directory+"/depth/"):
                     os.mkdir(args.directory+"/depth/")
+
+            os.mkdir(args.directory+"/tmp/") # necessary to achieve full FPS
+            os.mkdir(args.directory+"/tmp/rgb/")
+            os.mkdir(args.directory+"/tmp/depth/")
           
             # Create a pipeline
             pipeline = rs.pipeline()
@@ -73,14 +74,26 @@ def main():
             config = rs.config()
             if not args.live: # if not running live, read from bag file
                 rs.config.enable_device_from_file(config, args.input, False)
-            config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 60)
-            config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 60)
+            config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, args.fps)
+            config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, args.fps)
 
             if args.live:
-                #Enabling advanced mode to load settings from JSON file
+                # Enabling advanced mode to load settings from JSON file
                 dev = find_device_that_supports_advanced_mode()
                 advnc_mode = rs.rs400_advanced_mode(dev)
                 print("Advanced mode is", "enabled" if advnc_mode.is_enabled() else "disabled")
+
+                # set FPS in presets JSON file
+                filename = args.preset + '.json'
+                with open(filename, "r+") as jsonFile:
+                    data = json.load(jsonFile, object_pairs_hook=collections.OrderedDict)
+
+                    tmp = data["stream-fps"]
+                    data["stream-fps"] = str(args.fps)
+
+                    jsonFile.seek(0)  # rewind
+                    json.dump(data, jsonFile, indent=4)
+                    jsonFile.truncate()
 
                 # Loop until we successfully enable advanced mode
                 while not advnc_mode.is_enabled():
@@ -93,7 +106,6 @@ def main():
                     dev = find_device_that_supports_advanced_mode()
                     advnc_mode = rs.rs400_advanced_mode(dev)
                     print("Advanced mode is", "enabled" if advnc_mode.is_enabled() else "disabled")
-
 
                 # Loading controls from a json string
                 # For Python 2, the values in 'as_json_object' dict need to be converted from unicode object to utf-8
@@ -127,10 +139,14 @@ def main():
 
             i, i0 = 0, 0
             ext = '.png' # '.jpg'
+
             t0 = time()
             while True:
                 # Get frameset of color and depth
                 frames = pipeline.wait_for_frames()
+                if not frames:
+                    continue
+
                 # frames.get_depth_frame() is a 640x360 depth image
                 
                 # Align the depth frame to color frame
@@ -147,14 +163,15 @@ def main():
                 
                 depth_image = np.asanyarray(aligned_depth_frame.get_data())
                 color_image = np.asanyarray(color_frame.get_data())
-                
-                # arr.append((depth_image, color_image))
 
-                cv2.imwrite(os.path.join(args.directory + "/rgb/" + str(i).zfill(5) + ext), color_image)
-                cv2.imwrite(os.path.join(args.directory + "/depth/" + str(i).zfill(5) + ext), depth_image)
+                # save our numpy arrays to a tmp directory so we can maintain our FPS
+                #    and write the images to disk later 
+                outfile_color = args.directory + "/tmp/rgb/{}.npy".format(i)
+                outfile_depth = args.directory + "/tmp/depth/{}.npy".format(i)
+                np.save(outfile_color, color_image)
+                np.save(outfile_depth, depth_image)
 
-                with open(args.directory + '/associations.txt', 'a+') as f:
-                    f.write(str(i) + ' ' + './depth/' + str(i).zfill(5) +ext+ ' ' + str(i) + ' ' + "./rgb/" + str(i).zfill(5) + ext+ "\n")
+                arr.append([outfile_depth, outfile_color])
                 
                 # Remove background - Set pixels further than clipping_distance to grey
                 grey_color = 153
@@ -184,12 +201,40 @@ def main():
             int('aaron rodgers tha goat')
     finally:
         cv2.destroyAllWindows()
+        
+        print()
+
         if not valid_try or args.traceback:
             traceback.print_exc()
 
-        print(arr)
+        if args.live or args.input:
+            print('Writing RGB and depth channel pairs to disk...')
+
+            for i, pair in enumerate(arr):
+                # load the numpy arrays from disk
+                df, cf = pair
+                depth_image = np.load(df)
+                color_image = np.load(cf)
+
+                # delete the tmp files
+                os.remove(df)
+                os.remove(cf)
+
+                # write the images to disk
+                cv2.imwrite(os.path.join(args.directory + "/rgb/" + str(i).zfill(5) + ext), color_image)
+                cv2.imwrite(os.path.join(args.directory + "/depth/" + str(i).zfill(5) + ext), depth_image)
+
+                # update the RGB-Depth associations file
+                with open(args.directory + '/associations.txt', 'a+') as f:
+                    f.write(str(i) + ' ' + './depth/' + str(i).zfill(5) + ext + ' ' + str(i) + ' ' + "./rgb/" + str(i).zfill(5) + ext + "\n")
+
+                print('Progress: {}/{} pairs saved.'.format(i, len(arr)), end='\r')
+
+            print()
 
         if valid_try and not args.to_png:
+            print("Merging RGB and Depth images into ElasticFusion compatible format.")
+
             with cd(sys.path[0] + '/png_to_klg/build'): # generate the .klg file
                 os.system('./pngtoklg -w ' + args.directory + '/ -o ' + args.directory + '/realsense.klg')
 
@@ -207,8 +252,13 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--traceback", help='Show traceback flag', action='store_true')
     parser.add_argument("-l", "--live", help="Run on a live RealSense camera", action='store_true')
     parser.add_argument("--to_png", help="Testing flag", action='store_true')
+    parser.add_argument("--fps", type=int, help="frame rate to run the camera at", default=30)
+    parser.add_argument("--preset", type=str, help="RealSense camera presets", default='high_accuracy')
 
     args = parser.parse_args()
+
+    assert args.fps == 15 or args.fps == 30 or args.fps == 60 or args.fps == 90, "An invalid FPS was provided, supported rates are: 15, 30, 60, 90"
+    assert os.path.isfile(args.preset + ".json")
 
     main()
 
