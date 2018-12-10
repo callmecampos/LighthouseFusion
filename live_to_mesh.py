@@ -16,7 +16,7 @@ import numpy as np
 # Import OpenCV for easy image rendering
 import cv2
 # General OS, parameter parsing, and debugging
-import os, traceback, sys, argparse, json, collections
+import os, traceback, sys, argparse, json, collections, shutil
 
 class cd:
     """Context manager for changing the current working directory"""
@@ -52,16 +52,12 @@ def main():
     arr = []
     try:
         if args.live or args.input:
-            if not os.path.exists(args.directory):
-                os.mkdir(args.directory)
-                os.mkdir(args.directory+"/rgb/")
-                os.mkdir(args.directory+"/depth/")
-            else:
-                if not os.path.exists(args.directory+"/rgb/"):
-                    os.mkdir(args.directory+"/rgb/")
-                if not os.path.exists(args.directory+"/depth/"):
-                    os.mkdir(args.directory+"/depth/")
+            assert args.input or (args.live and not os.path.exists(args.directory)), "Output directory already exists."
 
+            os.mkdir(args.directory)
+            os.mkdir(args.directory+"/rgb/")
+            os.mkdir(args.directory+"/depth/")
+            
             os.mkdir(args.directory+"/tmp/") # necessary to achieve full FPS
             os.mkdir(args.directory+"/tmp/rgb/")
             os.mkdir(args.directory+"/tmp/depth/")
@@ -120,6 +116,12 @@ def main():
 
             # Start streaming
             profile = pipeline.start(config)
+
+            # Getting camera intrinsics and loading to disk
+            color_stream = profile.get_stream(rs.stream.color)
+            color_intr = color_stream.as_video_stream_profile().get_intrinsics()
+            with open(args.directory + '/intrinsics.txt','w') as f:
+                f.write("{} {} {} {}".format(color_intr.fx, color_intr.fy, color_intr.ppx, color_intr.ppy)) # load camera intrinsics
 
             # Getting the depth sensor's depth scale (see rs-align example for explanation)
             depth_sensor = profile.get_device().first_depth_sensor()
@@ -241,8 +243,10 @@ def main():
             if args.elastic: # if flag enabled, run Elastic Fusion on the generated .klg
                 print('Running ElasticFusion...')
                 with cd(sys.path[0] + '/ElasticFusion/GUI/build'):
-                    os.system('./ElasticFusion -l ' + args.directory + '/realsense.klg')
+                    os.system('./ElasticFusion -l ' + args.directory + '/realsense.klg -cal ' + args.directory + '/intrinsics.txt')
 
+        if args.delete and args.live:
+            shutil.rmtree(args.directory)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -254,11 +258,13 @@ if __name__ == "__main__":
     parser.add_argument("--to_png", help="Testing flag", action='store_true')
     parser.add_argument("--fps", type=int, help="frame rate to run the camera at", default=30)
     parser.add_argument("--preset", type=str, help="RealSense camera presets", default='high_accuracy')
+    parser.add_argument("--delete", help="Delete the dataset directory after running.", action='store_true')
 
     args = parser.parse_args()
 
     assert args.fps == 15 or args.fps == 30 or args.fps == 60 or args.fps == 90, "An invalid FPS was provided, supported rates are: 15, 30, 60, 90"
-    assert os.path.isfile(args.preset + ".json")
+    assert os.path.isfile(args.preset + ".json"), "Presets file does not exist."
+    assert (args.live and not args.input) or (not args.live and args.input), "Incompatible device input settings (choose live camera or .bag)"
 
     main()
 
