@@ -1,8 +1,6 @@
 # native python stuff
 from __future__ import print_function
 from time import time
-from scipy.signal import butter, lfilter, freqz
-import matplotlib.pyplot as plt
 
 
 # Import Numpy for easy array manipulation
@@ -15,7 +13,7 @@ import Queue
 import time
 
 import serial 
-ser = serial.Serial('COM4',9600, timeout=1)
+ser = serial.Serial('COM3',9600, timeout=1)
 whereUat = Queue.Queue()
 
 
@@ -30,7 +28,7 @@ class worker:
             rx=ser.readline()
             #byte = inp.encode('hex')
             self.whereUat.put(rx)
-            time.sleep(1)
+            time.sleep(.1)
 
     def go(self): 
         th1 = threading.Thread(target=self.read_serial, args=[ser]) 
@@ -57,7 +55,8 @@ try:
     t2 = worker2(whereUat) 
     t2.go2()
     time.sleep(10)
-    sys.exit()    
+    t2._stop()
+    t1._stop()
         # if key & 0xFF == ord('q') or key == 27:
             
             # break

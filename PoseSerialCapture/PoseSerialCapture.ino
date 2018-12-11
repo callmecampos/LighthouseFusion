@@ -9,9 +9,7 @@ void loop() {
   
   // put your main code here, to run repeatedly:
     Serial.print("0 1 1 1 1 1 2\n");
-    digitalWrite(13, HIGH);
-    delay(1000);
+    delay(10);
     Serial.print("1 0 1 0 1 0 1\n");
-    digitalWrite(13,LOW);
-    delay(1000);
+
 }
