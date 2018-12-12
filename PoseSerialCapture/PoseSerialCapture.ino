@@ -1,15 +1,19 @@
+#define HWSERIAL Serial1
+#define SampleRate (120)
+const int ledPin=13;
 void setup() {
   // put your setup code here, to run once:
-  Serial.begin(500000);
+  HWSERIAL.begin(38400);
   int i=0;
-  pinMode(13, OUTPUT);
+  pinMode(ledPin, OUTPUT);
+  digitalWrite(ledPin, HIGH);  
 }
 
 void loop() {
   
   // put your main code here, to run repeatedly:
-    Serial.print("0 1 1 1 1 1 2\n");
-    delay(10);
-    Serial.print("1 0 1 0 1 0 1\n");
-
+    HWSERIAL.println("0 1 1 1 1 1 2");
+    delay(SampleRate/2);
+    HWSERIAL.println("1 0 1 0 1 0 1");
+    delay(SampleRate/2);
 }

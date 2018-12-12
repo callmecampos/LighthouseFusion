@@ -2,6 +2,7 @@
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BNO055.h>
 #include <utility/imumaths.h>
+#include <string>
 
 /* This driver reads raw data from the BNO055
 
@@ -19,12 +20,14 @@
 
 /* Set the delay between fresh samples */
 #define BNO055_SAMPLERATE_DELAY_MS (33)
-
+#define HWSERIAL Serial1
 Adafruit_BNO055 bno = Adafruit_BNO055();
 imu::Vector<3> lin;
 imu::Quaternion quat;
 const int ledPin=13; 
 uint8_t sys, gyro=0, accel=0, mag = 0;
+String rdStr;
+
 /**************************************************************************/
 /*
     Arduino setup function (automatically called at startup)
@@ -48,30 +51,31 @@ void displaySensorDetails(void)
 }
 void setup(void)
 {
-  Serial.begin(9600);
+  HWSERIAL.begin(115200);
+  Serial.begin(115200);
   Serial.println("Orientation Sensor Raw Data Test"); Serial.println("");
   pinMode(ledPin,OUTPUT);
-  /* Initialise the sensor */
-  if(!bno.begin())
-  {
-    Serial.print("No IMU detected. Check connections.");
-    while(1);
-  }
-
-
-  /* Display the current temperature */
-  int8_t temp = bno.getTemp();
-  Serial.print("Current Temperature: ");
-  Serial.print(temp);
-  Serial.println(" C");
-  Serial.println("");
-
-  bno.setExtCrystalUse(true);
-  displaySensorDetails();
-  Serial.println("Calibration status values: 0=uncalibrated, 3=fully calibrated");
-    /* Display calibration status for each sensor. */
-
-  Serial.println("x,\t y,\t z,\t Ex,\t Ey,\t Ez,\t qx,\t qy,\t qz,\t qw,\t gyro,\t acce,\t mag\t ");
+//  /* Initialise the sensor */
+//  if(!bno.begin())
+//  {
+//    Serial.print("No IMU detected. Check connections.");
+//    while(1);
+//  }
+//
+//
+//  /* Display the current temperature */
+//  int8_t temp = bno.getTemp();
+//  Serial.print("Current Temperature: ");
+//  Serial.print(temp);
+//  Serial.println(" C");
+//  Serial.println("");
+//
+//  bno.setExtCrystalUse(true);
+//  displaySensorDetails();
+//  Serial.println("Calibration status values: 0=uncalibrated, 3=fully calibrated");
+//    /* Display calibration status for each sensor. */
+//
+//  Serial.println("x,\t y,\t z,\t Ex,\t Ey,\t Ez,\t qx,\t qy,\t qz,\t qw,\t gyro,\t acce,\t mag\t ");
 
 
 }
@@ -91,38 +95,45 @@ void loop(void){
   // - VECTOR_EULER         - degrees
   // - VECTOR_LINEARACCEL   - m/s^2
   // - VECTOR_GRAVITY       - m/s^2
-  sensors_event_t event;
-  bno.getEvent(&event);
+  char incomingByte;
+//  sensors_event_t event;
+//  bno.getEvent(&event);
+//  
+//  bno.getCalibration(&sys, &gyro, &accel, &mag);
+//  lin = bno.getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
+//  //Quaternion Data
+//  quat = bno.getQuat();
+//  bno.getCalibration(&sys, &gyro, &accel, &mag);
+//  if (gyro<3 || accel<3 || mag<3){
+//    digitalWrite(ledPin,LOW);
+//    while(gyro<3 || accel<3 || mag<3){
+//      bno.getCalibration(&sys, &gyro, &accel, &mag);
+//      lin = bno.getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
+//      Serial.printf("%i, %i, %i\n",gyro,accel,mag);
+//      digitalWrite(ledPin,HIGH);
+//    }
+//    Serial.printf("CALIBRATED Part wait 5 seconds");
+//    delay(5000);
+//  }
+  if (HWSERIAL.available() > 0 && (char) HWSERIAL.read()=='+')
+    {while (HWSERIAL.available() > 0 ) {
+      incomingByte = (char) HWSERIAL.read();
+      if (incomingByte=='\n')
+      {break;}
+      rdStr+=incomingByte;
+      
+      if(rdStr.length())
+      {
+      Serial.println(rdStr);}
+    }}
+  //if (rdStr.length())
+  //  {Serial.println(rdStr.c_str());  
+  //}
+  //rdStr="";
+//  Serial.printf("% 08.3f, % 08.3f, % 08.3f,\t% 010.5f, % 010.5f, % 010.5f,\t% 015.12f, % 015.12f, % 015.12f, % 015.12f,\t %i, %i, %i\n",
+//    lin.x(),lin.y(),lin.z(),(float)event.orientation.x,(float)event.orientation.y, (float)event.orientation.z, quat.x(),quat.y(),
+//    quat.z(),quat.w(),gyro,accel,mag);
+//  
   
-  bno.getCalibration(&sys, &gyro, &accel, &mag);
-  lin = bno.getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
-  //Quaternion Data
-  quat = bno.getQuat();
-  bno.getCalibration(&sys, &gyro, &accel, &mag);
-  if (gyro<3 || accel<3 || mag<3){
-    digitalWrite(ledPin,LOW);
-    while(gyro<3 || accel<3 || mag<3){
-      bno.getCalibration(&sys, &gyro, &accel, &mag);
-      lin = bno.getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
-      Serial.printf("%i, %i, %i\n",gyro,accel,mag);
-      digitalWrite(ledPin,HIGH);
-    }
-    Serial.printf("CALIBRATED Part wait 5 seconds");
-    delay(5000);
-  }
-
-    
-  
-//  Serial.print(F("Orientation: "));
-//  Serial.print((float)event.orientation.x);
-//  Serial.print(F(" "));
-//  Serial.print((float)event.orientation.y);
-//  Serial.print(F(" "));
-//  Serial.print((float)event.orientation.z);
-//  Serial.println(F(""));
-
-  Serial.printf("% 08.3f, % 08.3f, % 08.3f,\t% 010.5f, % 010.5f, % 010.5f,\t% 015.12f, % 015.12f, % 015.12f, % 015.12f,\t %i, %i, %i\n",
-    lin.x(),lin.y(),lin.z(),(float)event.orientation.x,(float)event.orientation.y, (float)event.orientation.z, quat.x(),quat.y(),
-    quat.z(),quat.w(),gyro,accel,mag);
-  delay(BNO055_SAMPLERATE_DELAY_MS);
+  // delay(BNO055_SAMPLERATE_DELAY_MS);
 }
