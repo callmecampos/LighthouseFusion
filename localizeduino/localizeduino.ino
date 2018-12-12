@@ -3,6 +3,9 @@
 #include <Adafruit_BNO055.h>
 #include <utility/imumaths.h>
 
+#define INERTIAL true
+#define DEBUG false
+
 /* This driver reads raw data from the BNO055
 
    Connections
@@ -34,36 +37,41 @@ void setup() {
   
   Serial.begin(115200); Serial1.begin(115200); Serial2.begin(115200);
 
-  pinMode(ledPin,OUTPUT);
-  /* initialize the sensor */
-  if(!bno.begin())
-  {
-    setupFlag();
-    Serial.println("No IMU detected. Check connections.");
-    while(1);
-  }
-
-  /* Set external Teensy crystal as clock reference for IMU. */
-  bno.setExtCrystalUse(true);
-
-  /* Calibrate IMU. */
-  bno.getCalibration(&sys, &gyro, &accel, &mag);
-  if (gyro<3 || accel<3 || mag<3){
-    digitalWrite(ledPin,LOW);
-    while(gyro<3 || accel<3 || mag<3){
-      bno.getCalibration(&sys, &gyro, &accel, &mag);
+  if (INERTIAL) {
+    pinMode(ledPin,OUTPUT);
+    /* initialize the sensor */
+    if(!bno.begin())
+    {
       setupFlag();
-      Serial.printf("%i\t%i\t%i\n",gyro,accel,mag);
-      digitalWrite(ledPin,HIGH);
+      Serial.println("No IMU detected. Check connections.");
+      while(1);
     }
-    digitalWrite(ledPin, LOW);
-    setupFlag();
-    Serial.println("Sensor tentatively calibrated, waiting 5 seconds before continuing...");
-    delay(5000);
+  
+    /* Set external Teensy crystal as clock reference for IMU. */
+    bno.setExtCrystalUse(true);
+  
+    /* Calibrate IMU. */
+    bno.getCalibration(&sys, &gyro, &accel, &mag);
+    if (gyro<3 || accel<3 || mag<3){
+      digitalWrite(ledPin,LOW);
+      while(gyro<3 || accel<3 || mag<3){
+        bno.getCalibration(&sys, &gyro, &accel, &mag);
+        setupFlag();
+        Serial.printf("%i\t%i\t%i\n",gyro,accel,mag);
+        digitalWrite(ledPin,HIGH);
+      }
+      digitalWrite(ledPin, LOW);
+      setupFlag();
+      Serial.println("Sensor tentatively calibrated, waiting 5 seconds before continuing...");
+      delay(5000);
+    }
   }
 
   setupFlag();
-  Serial.println("Sensor fully calibrated, Waiting for UART communication to activate.");
+  if (INERTIAL) {
+    Serial.print("Sensor fully calibrated, ");
+  }
+  Serial.println("Waiting for UART communication to activate.");
 
   while (!Serial1 || !Serial2)  {
     ; // wait for serial to connect
@@ -111,7 +119,10 @@ void readSerial1() {
           // read from IMU and send over 6DoF pose
           Serial.print("Back:\t");
           Serial.print(myString);
-          readIMU();
+          if (INERTIAL) {
+            readIMU(DEBUG);
+          }
+          Serial.println();
         }
         reading1 = false; ind1 = 0; check1 = 0; // reset params
       } else if (inChar == '\t') { // delimiter
@@ -144,8 +155,11 @@ void readSerial2() {
         if (check2 == 6) { // check if tracking
           // read from IMU and send over 6DoF pose
           Serial.print("Front:\t");
-          Serial.println(myString);
-          readIMU();
+          Serial.print(myString);
+          if (INERTIAL) {
+            readIMU(DEBUG);
+          }
+          Serial.println();
         }
         reading2 = false; ind2 = 0; check2 = 0; // reset params
       } else if (inChar == '\t') { // delimiter
@@ -161,10 +175,7 @@ void readSerial2() {
 // MARK: IMU interfacing
 
 /**/
-void readIMU() {
-  sensors_event_t event;
-  bno.getEvent(&event);
-
+void readIMU(boolean euler) {
   // Possible vector values can be:
   // - VECTOR_ACCELEROMETER - m/s^2
   // - VECTOR_MAGNETOMETER  - uT
@@ -175,12 +186,20 @@ void readIMU() {
   lin = bno.getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
   quat = bno.getQuat();
   
+  sensors_event_t event;
+  if (euler) {
+    bno.getEvent(&event);
+  }
+  
   bno.getCalibration(&sys, &gyro, &accel, &mag);
 
   Serial.printf("%010.5f,%010.5f,%10.5f\t", lin.x(), lin.y(), lin.z()); // print linear acceleration values
-  Serial.printf("%010.5f,%010.5f,%010.5f\t", (float) event.orientation.x, (float) event.orientation.y, (float) event.orientation.z); // print fused orientation values
-  Serial.printf("%015.12f,%015.12f,%015.12f,%015.12f\t", quat.x(),quat.y(), quat.z(), quat.w()); // print quaternions
-  Serial.printf("%i,%i,%i\n", gyro, accel, mag); // print calibration values
+  if (euler) {
+    Serial.printf("%010.5f,%010.5f,%010.5f\t", (float) event.orientation.x, (float) event.orientation.y, (float) event.orientation.z); // print fused orientation values
+    Serial.printf("%010.5f,%010.5f,%010.5f\t", (float) event.orientation.x - (float) (180.0/3.14159) * quat.toEuler().x(), (float) event.orientation.y - (float) (180.0/3.14159) * quat.toEuler().y(), (float) event.orientation.z - (float) (180.0/3.14159) * quat.toEuler().z());
+  }
+  Serial.printf("%015.12f,%015.12f,%015.12f,%015.12f\t", quat.x(), quat.y(), quat.z(), quat.w()); // print quaternions
+  Serial.printf("%i,%i,%i", gyro, accel, mag); // print calibration values
 }
 
 // MARK: Serial flags
