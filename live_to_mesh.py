@@ -258,7 +258,10 @@ def main():
             if args.elastic: # if flag enabled, run Elastic Fusion on the generated .klg
                 print('Running ElasticFusion...')
                 with cd(sys.path[0] + '/ElasticFusion/GUI/build'):
-                    os.system('./ElasticFusion -l ' + args.directory + '/realsense.klg -cal ' + args.directory + '/intrinsics.txt')
+                    if args.ground:
+                        os.system('./ElasticFusion -l ' + args.directory + '/realsense.klg -cal ' + args.directory + '/intrinsics.txt -p ' + args.directory + '/pose.freiburg')
+                    else:
+                        os.system('./ElasticFusion -l ' + args.directory + '/realsense.klg -cal ' + args.directory + '/intrinsics.txt')
 
         if args.delete and args.live:
             shutil.rmtree(args.directory)
@@ -270,7 +273,7 @@ if __name__ == "__main__":
     parser.add_argument("-e", "--elastic", help='Run ElasticFusion flag', action='store_true')
     parser.add_argument("-t", "--traceback", help='Show traceback flag', action='store_true')
     parser.add_argument("-l", "--live", help="Run on a live RealSense camera", action='store_true')
-    parser.add_argument("-g", "--ground", help="Run ElasticFusion on ground truth estimates.")
+    parser.add_argument("-g", "--ground", help="Run ElasticFusion on ground truth estimates.", action='store_true')
     parser.add_argument("-s", "--serial", help="Run multicore process to read from serial.", action='store_true')
     parser.add_argument("-p", "--port", type=str, help="The serial port.")
     parser.add_argument("-b", "--baud", type=int, help="The baud rate.", default=115200)
