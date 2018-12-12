@@ -46,9 +46,9 @@ def find_device_that_supports_advanced_mode():
             return dev
     raise Exception("No device that supports advanced mode was found")
 
-def serial_data(ser):
+def serial_data(port, baud):
     ser = serial.Serial(port, baud)
-    val = time.time(), ser.readline().decode("utf-8")
+    val = time(), ser.readline().decode("utf-8")
     ser.close()
     return val
 
@@ -149,16 +149,16 @@ def main():
             pose, ext = None, '.png' # '.jpg'
 
             t0 = time()
-            while True:
+            while i < 1200:
                 # Get frameset of color and depth
                 frames = pipeline.wait_for_frames()
                 if not frames:
                     continue
 
                 if args.serial:
-                    pose = serial_data(args.port, args.baud)
+                    pose = serial_data(args.port, args.baud)[1].split("\t")
                     # TODO: check if tracking failed (time since last update?)
-                    if pose[0] == "Setup:" || pose[0] == "Error:":
+                    if pose[0] == "Setup:" or pose[0] == "Error:":
                         print("Pose estimation not setup yet. Breaking.")
                         break
 
@@ -186,21 +186,23 @@ def main():
 
                 arr.append([outfile_depth, outfile_color, pose])
 
-                # Remove background - Set pixels further than clipping_distance to grey
-                grey_color = 153
-                depth_image_3d = np.dstack((depth_image,depth_image,depth_image)) #depth image is 1 channel, color is 3 channels
-                bg_removed = np.where((depth_image_3d > clipping_distance) | (depth_image_3d <= 0), grey_color, color_image)
+                if (False):
 
-                # Render images
-                depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.03), cv2.COLORMAP_JET)
-                images = np.hstack((bg_removed, depth_colormap))
-                cv2.namedWindow('Align Example', cv2.WINDOW_AUTOSIZE)
-                cv2.imshow('Align Example', images)
-                key = cv2.waitKey(1)
-                # Press esc or 'q' to close the image window
-                if key & 0xFF == ord('q') or key == 27:
-                    cv2.destroyAllWindows()
-                    break
+                    # Remove background - Set pixels further than clipping_distance to grey
+                    grey_color = 153
+                    depth_image_3d = np.dstack((depth_image,depth_image,depth_image)) #depth image is 1 channel, color is 3 channels
+                    bg_removed = np.where((depth_image_3d > clipping_distance) | (depth_image_3d <= 0), grey_color, color_image)
+
+                    # Render images
+                    depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.03), cv2.COLORMAP_JET)
+                    images = np.hstack((bg_removed, depth_colormap))
+                    cv2.namedWindow('Align Example', cv2.WINDOW_AUTOSIZE)
+                    cv2.imshow('Align Example', images)
+                    key = cv2.waitKey(1)
+                    # Press esc or 'q' to close the image window
+                    if key & 0xFF == ord('q') or key == 27:
+                        cv2.destroyAllWindows()
+                        break
                 i += 1
 
                 print('Running frame-rate avg.: {} Hz ({})'.format(float(i-i0) / (time()-t0), i), end='\r')
@@ -223,6 +225,7 @@ def main():
         if args.live or args.input:
             print('Writing RGB and depth channel pairs to disk...')
 
+            init_pose = None
             for i, data in enumerate(arr):
                 # load the numpy arrays from disk
                 df, cf, pose = data
@@ -237,12 +240,15 @@ def main():
                 cv2.imwrite(os.path.join(args.directory + "/rgb/" + str(i).zfill(5) + ext), color_image)
                 cv2.imwrite(os.path.join(args.directory + "/depth/" + str(i).zfill(5) + ext), depth_image)
 
+                if i == 0:
+                    init_pose = (float(pose[4]), float(pose[6]), float(pose[5]))
+
                 # update the RGB-Depth associations file
                 with open(args.directory + '/associations.txt', 'a+') as f:
                     f.write(str(i) + ' ' + './depth/' + str(i).zfill(5) + ext + ' ' + str(i) + ' ' + "./rgb/" + str(i).zfill(5) + ext + "\n")
 
                 with open(args.directory + '/pose.freiburg', 'a+') as f:
-                    f.write("{} {} {} {} {} {} {} {}\n".format(i, pose[4], pose[6], pose[5],
+                    f.write("{} {} {} {} {} {} {} {}\n".format(i, float(pose[4])-init_pose[0], float(pose[6])-init_pose[1], float(pose[5])-init_pose[2],
                                                             pose[8], pose[9], pose[10], pose[11]))
 
                 print('Progress: {}/{} pairs saved.'.format(i, len(arr)), end='\r')
