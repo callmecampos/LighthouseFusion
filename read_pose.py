@@ -10,9 +10,11 @@ def serial_data(port, baudrate):
 
 parser = argparse.ArgumentParser()
 parser.add_argument("port", type=str, help="The serial port.")
+parser.add_argument("-b", "--baud", type=int, help="The baud rate.", default=57600)
 args = parser.parse_args()
 
-for line in serial_data(args.port, 57600):
+i, p0 = 0, (0, 0, 0, 0)
+for line in serial_data(args.port, args.baud):
     data = line.decode("utf-8").split("\t")
     if data[0] == "ANG0":
         with open("angles.txt", "a+") as f:
@@ -20,8 +22,11 @@ for line in serial_data(args.port, 57600):
         continue
     tracking = len(data) == 7
     if tracking:
-        print("Tracking...", end="\r")
+        if i = 0:
+            p0 = (float(data[3]), float(data[4]), float(data[5]), float(data[6]))
+        pose = (float(data[3])-p0[0], float(data[4])-p0[1], float(data[5])-p0[2], float(data[6])-p0[3])
+        print("Tracking ({})...".format(i), end="\r")
         with open("poses.txt", "a+") as f:
-            f.write("{} {} {}\n".format(data[3], data[4], data[5]))
+            f.write("{} {} {} {}".format(data[3], data[4], data[5], data[6]))
     else:
         print("Not tracking...", end="\r")
