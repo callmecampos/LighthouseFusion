@@ -1,5 +1,5 @@
-# Lighthouse-SLAM
-High accuracy and fidelity real-time dense visual SLAM using inertial data and lighthouse-localization based low-drift pose estimation.
+# LighthouseFusion
+Low-Latency, Low-Drift 6DoF Pose Estimation for 3D Surface Reconstruction.
 
 ## Dependencies
 
