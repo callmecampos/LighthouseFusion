@@ -1,5 +1,5 @@
 # LighthouseFusion
-Low-Latency, Low-Drift 6DoF Pose Estimation for 3D Surface Reconstruction.
+Low-latency, high precision, a priori 6DoF pose estimation for 3D surface reconstruction.
 
 ## Dependencies
 
