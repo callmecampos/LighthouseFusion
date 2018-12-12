@@ -118,10 +118,10 @@ def main():
             profile = pipeline.start(config)
 
             # Getting camera intrinsics and loading to disk
-            color_stream = profile.get_stream(rs.stream.color)
-            color_intr = color_stream.as_video_stream_profile().get_intrinsics()
+            depth_stream = profile.get_stream(rs.stream.depth)
+            depth_intr = depth_stream.as_video_stream_profile().get_intrinsics()
             with open(args.directory + '/intrinsics.txt','w') as f:
-                f.write("{} {} {} {}".format(color_intr.fx, color_intr.fy, color_intr.ppx, color_intr.ppy)) # load camera intrinsics
+                f.write("{} {} {} {}".format(depth_intr.fx, depth_intr.fy, depth_intr.ppx, depth_intr.ppy)) # load camera intrinsics
 
             # Getting the depth sensor's depth scale (see rs-align example for explanation)
             depth_sensor = profile.get_device().first_depth_sensor()
@@ -255,6 +255,10 @@ if __name__ == "__main__":
     parser.add_argument("-e", "--elastic", help='Run ElasticFusion flag', action='store_true')
     parser.add_argument("-t", "--traceback", help='Show traceback flag', action='store_true')
     parser.add_argument("-l", "--live", help="Run on a live RealSense camera", action='store_true')
+    parser.add_argument("-g", "--ground", help="Run ElasticFusion on ground truth estimates.")
+    parser.add_argument("-s", "--serial", help="Run multicore process to read from serial.", action='store_true')
+    parser.add_argument("-p", "--port", type=str, help="The serial port.")
+    parser.add_argument("-b", "--baud", type=int, help="The baud rate.", default=115200)
     parser.add_argument("--to_png", help="Testing flag", action='store_true')
     parser.add_argument("--fps", type=int, help="frame rate to run the camera at", default=30)
     parser.add_argument("--preset", type=str, help="RealSense camera presets", default='high_accuracy')
