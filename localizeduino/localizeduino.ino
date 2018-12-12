@@ -120,6 +120,7 @@ void readSerial1() {
           Serial.print("Back:\t");
           Serial.print(myString);
           if (INERTIAL) {
+            Serial.print("\t");
             readIMU(DEBUG);
           }
           Serial.println();
@@ -157,6 +158,7 @@ void readSerial2() {
           Serial.print("Front:\t");
           Serial.print(myString);
           if (INERTIAL) {
+            Serial.print("\t");
             readIMU(DEBUG);
           }
           Serial.println();
@@ -183,7 +185,6 @@ void readIMU(boolean euler) {
   // - VECTOR_EULER         - degrees
   // - VECTOR_LINEARACCEL   - m/s^2
   // - VECTOR_GRAVITY       - m/s^2
-  lin = bno.getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
   quat = bno.getQuat();
   
   sensors_event_t event;
@@ -192,13 +193,11 @@ void readIMU(boolean euler) {
   }
   
   bno.getCalibration(&sys, &gyro, &accel, &mag);
-
-  Serial.printf("%010.5f,%010.5f,%10.5f\t", lin.x(), lin.y(), lin.z()); // print linear acceleration values
   if (euler) {
     Serial.printf("%010.5f,%010.5f,%010.5f\t", (float) event.orientation.x, (float) event.orientation.y, (float) event.orientation.z); // print fused orientation values
     Serial.printf("%010.5f,%010.5f,%010.5f\t", (float) event.orientation.x - (float) (180.0/3.14159) * quat.toEuler().x(), (float) event.orientation.y - (float) (180.0/3.14159) * quat.toEuler().y(), (float) event.orientation.z - (float) (180.0/3.14159) * quat.toEuler().z());
   }
-  Serial.printf("%015.12f,%015.12f,%015.12f,%015.12f\t", quat.x(), quat.y(), quat.z(), quat.w()); // print quaternions
+  Serial.printf("%015.12f\t%015.12f\t%015.12f\t%015.12f\t", quat.x(), quat.y(), quat.z(), quat.w()); // print quaternions
   Serial.printf("%i,%i,%i", gyro, accel, mag); // print calibration values
 }
 

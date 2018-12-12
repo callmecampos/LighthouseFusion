@@ -1,23 +1,26 @@
 from __future__ import print_function
 from multiprocessing import Process, Queue
 import os, traceback, sys, argparse, io, time
-import serial, multiprocessing, Queue
+import serial, multiprocessing
+
+curr_pose = []
 
 class SerialWorker(Process):
-    def __init__(self, port, baud=115200, timeout=1, queue=Queue()):
-        self.queue = queue
-        super(SerialWorker, self).__init__(target=self.loop_iterator, args=(port, baud, timeout, queue))
+    def __init__(self, port, baud=115200, timeout=1):
+        super(SerialWorker, self).__init__(target=self.loop_iterator, args=(port, baud, timeout))
 
-    def loop_iterator(self, port, baud, timeout, queue):
+    def loop_iterator(self, port, baud, timeout):
+        global curr_pose
         ser = serial.Serial(port, baudrate=baud, timeout=timeout)
-        t = None
-        for new_line in self.loop(ser, queue):
-            t = time()
-            data = line.split("\t")
+        for new_line in self.loop(ser):
+            pose = [time.time()]
+            data = new_line.split("\t")
+            pose.extend(data)
             if data[0] == "Setup:" or data[0] == "Error:":
                 continue
 
-            queue.put(data)
+            print(pose)
+            curr_pose = pose
 
     def loop(self, ser):
         while True:
@@ -30,8 +33,8 @@ def main():
     worker.start()
 
     for i in range(20):
-        print(worker.queue)
-        time.sleep(5)
+        print(curr_pose)
+        time.sleep(2)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

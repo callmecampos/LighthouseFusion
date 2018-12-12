@@ -16,7 +16,7 @@ import numpy as np
 # Import OpenCV for easy image rendering
 import cv2
 # General OS, parameter parsing, and debugging
-import os, traceback, sys, argparse, json, collections, shutil
+import os, sys, serial, traceback, argparse, json, collections, shutil
 
 class cd:
     """Context manager for changing the current working directory"""
@@ -32,7 +32,7 @@ class cd:
 
 DS5_product_ids = ["0AD1", "0AD2", "0AD3", "0AD4", "0AD5", "0AF6", "0AFE", "0AFF", "0B00", "0B01", "0B03", "0B07"]
 
-def find_device_that_supports_advanced_mode() :
+def find_device_that_supports_advanced_mode():
     ctx = rs.context()
     ds5_dev = rs.device()
     devices = ctx.query_devices();
@@ -46,6 +46,12 @@ def find_device_that_supports_advanced_mode() :
             return dev
     raise Exception("No device that supports advanced mode was found")
 
+def serial_data(ser):
+    ser = serial.Serial(port, baud)
+    val = time.time(), ser.readline().decode("utf-8")
+    ser.close()
+    return val
+
 def main():
     # Streaming loop
     valid_try = False
@@ -57,11 +63,11 @@ def main():
             os.mkdir(args.directory)
             os.mkdir(args.directory+"/rgb/")
             os.mkdir(args.directory+"/depth/")
-            
+
             os.mkdir(args.directory+"/tmp/") # necessary to achieve full FPS
             os.mkdir(args.directory+"/tmp/rgb/")
             os.mkdir(args.directory+"/tmp/depth/")
-          
+
             # Create a pipeline
             pipeline = rs.pipeline()
 
@@ -140,7 +146,7 @@ def main():
             align = rs.align(align_to)
 
             i, i0 = 0, 0
-            ext = '.png' # '.jpg'
+            pose, ext = None, '.png' # '.jpg'
 
             t0 = time()
             while True:
@@ -149,37 +155,42 @@ def main():
                 if not frames:
                     continue
 
-                # frames.get_depth_frame() is a 640x360 depth image
-                
+                if args.serial:
+                    pose = serial_data(args.port, args.baud)
+                    # TODO: check if tracking failed (time since last update?)
+                    if pose[0] == "Setup:" || pose[0] == "Error:":
+                        print("Pose estimation not setup yet. Breaking.")
+                        break
+
                 # Align the depth frame to color frame
                 aligned_frames = align.process(frames)
-                
+
                 # Get aligned frames
                 aligned_depth_frame = aligned_frames.get_depth_frame() # aligned_depth_frame is a 640x480 depth image
                 color_frame = aligned_frames.get_color_frame()
-                
+
                 # Validate that both frames are valid
                 if not aligned_depth_frame or not color_frame:
                     print('Frame ' + str(i) + ' not aligned correctly.')
                     continue
-                
+
                 depth_image = np.asanyarray(aligned_depth_frame.get_data())
                 color_image = np.asanyarray(color_frame.get_data())
 
                 # save our numpy arrays to a tmp directory so we can maintain our FPS
-                #    and write the images to disk later 
+                #    and write the images to disk later
                 outfile_color = args.directory + "/tmp/rgb/{}.npy".format(i)
                 outfile_depth = args.directory + "/tmp/depth/{}.npy".format(i)
                 np.save(outfile_color, color_image)
                 np.save(outfile_depth, depth_image)
 
-                arr.append([outfile_depth, outfile_color])
-                
+                arr.append([outfile_depth, outfile_color, pose])
+
                 # Remove background - Set pixels further than clipping_distance to grey
                 grey_color = 153
                 depth_image_3d = np.dstack((depth_image,depth_image,depth_image)) #depth image is 1 channel, color is 3 channels
                 bg_removed = np.where((depth_image_3d > clipping_distance) | (depth_image_3d <= 0), grey_color, color_image)
-                
+
                 # Render images
                 depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.03), cv2.COLORMAP_JET)
                 images = np.hstack((bg_removed, depth_colormap))
@@ -203,7 +214,7 @@ def main():
             int('aaron rodgers tha goat')
     finally:
         cv2.destroyAllWindows()
-        
+
         print()
 
         if not valid_try or args.traceback:
@@ -212,9 +223,9 @@ def main():
         if args.live or args.input:
             print('Writing RGB and depth channel pairs to disk...')
 
-            for i, pair in enumerate(arr):
+            for i, data in enumerate(arr):
                 # load the numpy arrays from disk
-                df, cf = pair
+                df, cf, pose = data
                 depth_image = np.load(df)
                 color_image = np.load(cf)
 
@@ -229,6 +240,10 @@ def main():
                 # update the RGB-Depth associations file
                 with open(args.directory + '/associations.txt', 'a+') as f:
                     f.write(str(i) + ' ' + './depth/' + str(i).zfill(5) + ext + ' ' + str(i) + ' ' + "./rgb/" + str(i).zfill(5) + ext + "\n")
+
+                with open(args.directory + '/pose.freiburg', 'a+') as f:
+                    f.write("{} {} {} {} {} {} {} {}\n".format(i, pose[4], pose[6], pose[5],
+                                                            pose[8], pose[9], pose[10], pose[11]))
 
                 print('Progress: {}/{} pairs saved.'.format(i, len(arr)), end='\r')
 
@@ -271,4 +286,3 @@ if __name__ == "__main__":
     assert (args.live and not args.input) or (not args.live and args.input), "Incompatible device input settings (choose live camera or .bag)"
 
     main()
-
