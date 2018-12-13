@@ -149,14 +149,14 @@ void loop(void)
    //acceleration
   accelerationz[1] = accelerationz[1] - sstatez;
 //  Serial.printf("%f %f %f\n", accelerationx.06[1], accelerationy[1], accelerationz[1] );
-Serial.printf("% 08.3f, % 08.3f, % 08.3f,\t% 015.12f, % 015.12f, % 015.12f, % 015.12f,\t %i, %i, %i\n",accelerationx[1],accelerationy[1],accelerationz[1],quat.x(),quat.y(),quat.z(),quat.w(),gyro,accel,mag);
-  if ((accelerationx[1] <=.1)&&(accelerationx[1] >= -.1)) //Discrimination window applied
-   {accelerationx[1] = 0;} // to the X axis acceleration
-   //variable
-  if ((accelerationy[1] <=.1)&&(accelerationy[1] >= -.1))
-    {accelerationy[1] = 0;}
-  if ((accelerationz[1] <=.1)&&(accelerationz[1] >= -.1)) //Discrimination window applied
-    {accelerationz[1] = 0;} // to the X axis acceleration
+//Serial.printf("% 08.3f, % 08.3f, % 08.3f,\t% 015.12f, % 015.12f, % 015.12f, % 015.12f,\t %i, %i, %i\n",accelerationx[1],accelerationy[1],accelerationz[1],quat.x(),quat.y(),quat.z(),quat.w(),gyro,accel,mag);
+//  if ((accelerationx[1] <=.1)&&(accelerationx[1] >= -.1)) //Discrimination window applied
+//   {accelerationx[1] = 0;} // to the X axis acceleration
+//   //variable
+//  if ((accelerationy[1] <=.1)&&(accelerationy[1] >= -.1))
+//    {accelerationy[1] = 0;}
+//  if ((accelerationz[1] <=.1)&&(accelerationz[1] >= -.1)) //Discrimination window applied
+//    {accelerationz[1] = 0;} // to the X axis acceleration
     
    //first X integration:
   velocityx[1]= velocityx[0]+ (accelerationx[0]+ ((accelerationx[1] -accelerationx[0])/2))*time;
@@ -181,8 +181,8 @@ Serial.printf("% 08.3f, % 08.3f, % 08.3f,\t% 015.12f, % 015.12f, % 015.12f, % 01
   velocityx[0] = velocityx[1]; //Same done for the velocity variable
   velocityy[0] = velocityy[1];
   velocityz[0] = velocityz[1];
-  
-  Serial.printf("% 08.3f, % 08.3f, % 08.3f,\t% 015.12f, % 015.12f, % 015.12f, % 015.12f,\t %i, %i, %i\n",positionX[1],positionY[1],positionZ[1],quat.x(),quat.y(),quat.z(),quat.w(),gyro,accel,mag);
+  Serial. print( millis());
+  Serial.printf("% 08.3f, % 08.3f, % 08.3f,\t% 08.3f, % 08.3f, % 08.3f,\t% 015.12f, % 015.12f, % 015.12f, % 015.12f,\t %i, %i, %i\n",positionX[1],positionY[1],positionZ[1],lin.x(),lin.y(),lin.z(),quat.x(),quat.y(),quat.z(),quat.w(),gyro,accel,mag);
   
 
 

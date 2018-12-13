@@ -55,27 +55,27 @@ void setup(void)
   Serial.begin(115200);
   Serial.println("Orientation Sensor Raw Data Test"); Serial.println("");
   pinMode(ledPin,OUTPUT);
-//  /* Initialise the sensor */
-//  if(!bno.begin())
-//  {
-//    Serial.print("No IMU detected. Check connections.");
-//    while(1);
-//  }
-//
-//
-//  /* Display the current temperature */
-//  int8_t temp = bno.getTemp();
-//  Serial.print("Current Temperature: ");
-//  Serial.print(temp);
-//  Serial.println(" C");
-//  Serial.println("");
-//
-//  bno.setExtCrystalUse(true);
-//  displaySensorDetails();
-//  Serial.println("Calibration status values: 0=uncalibrated, 3=fully calibrated");
-//    /* Display calibration status for each sensor. */
-//
-//  Serial.println("x,\t y,\t z,\t Ex,\t Ey,\t Ez,\t qx,\t qy,\t qz,\t qw,\t gyro,\t acce,\t mag\t ");
+  /* Initialise the sensor */
+  if(!bno.begin())
+  {
+    Serial.print("No IMU detected. Check connections.");
+    while(1);
+  }
+
+
+  /* Display the current temperature */
+  int8_t temp = bno.getTemp();
+  Serial.print("Current Temperature: ");
+  Serial.print(temp);
+  Serial.println(" C");
+  Serial.println("");
+
+  bno.setExtCrystalUse(true);
+  displaySensorDetails();
+  Serial.println("Calibration status values: 0=uncalibrated, 3=fully calibrated");
+    /* Display calibration status for each sensor. */
+
+  Serial.println("x,\t y,\t z,\t Ex,\t Ey,\t Ez,\t qx,\t qy,\t qz,\t qw,\t gyro,\t acce,\t mag\t ");
 
 
 }
@@ -96,44 +96,43 @@ void loop(void){
   // - VECTOR_LINEARACCEL   - m/s^2
   // - VECTOR_GRAVITY       - m/s^2
   char incomingByte;
-//  sensors_event_t event;
-//  bno.getEvent(&event);
-//  
-//  bno.getCalibration(&sys, &gyro, &accel, &mag);
-//  lin = bno.getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
-//  //Quaternion Data
-//  quat = bno.getQuat();
-//  bno.getCalibration(&sys, &gyro, &accel, &mag);
-//  if (gyro<3 || accel<3 || mag<3){
-//    digitalWrite(ledPin,LOW);
-//    while(gyro<3 || accel<3 || mag<3){
-//      bno.getCalibration(&sys, &gyro, &accel, &mag);
-//      lin = bno.getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
-//      Serial.printf("%i, %i, %i\n",gyro,accel,mag);
-//      digitalWrite(ledPin,HIGH);
-//    }
-//    Serial.printf("CALIBRATED Part wait 5 seconds");
-//    delay(5000);
-//  }
-  if (HWSERIAL.available() > 0 && (char) HWSERIAL.read()=='+')
-    {while (HWSERIAL.available() > 0 ) {
-      incomingByte = (char) HWSERIAL.read();
-      if (incomingByte=='\n')
-      {break;}
-      rdStr+=incomingByte;
-      
-      if(rdStr.length())
-      {
-      Serial.println(rdStr);}
-    }}
+  sensors_event_t event;
+  bno.getEvent(&event);
+  
+  bno.getCalibration(&sys, &gyro, &accel, &mag);
+  lin = bno.getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
+  //Quaternion Data
+  quat = bno.getQuat();
+  bno.getCalibration(&sys, &gyro, &accel, &mag);
+  if (gyro<3 || accel<3 || mag<3){
+    digitalWrite(ledPin,LOW);
+    while(gyro<3 || accel<3 || mag<3){
+      bno.getCalibration(&sys, &gyro, &accel, &mag);
+      lin = bno.getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
+      Serial.printf("%i, %i, %i\n",gyro,accel,mag);
+      digitalWrite(ledPin,HIGH);
+    }
+    Serial.printf("CALIBRATED Part wait 5 seconds");
+    delay(5000);
+  }
+//  if (HWSERIAL.available() > 0 && (char) HWSERIAL.read()=='+')
+//    {while (HWSERIAL.available() > 0 ) {
+//      incomingByte = (char) HWSERIAL.read();
+//      if (incomingByte=='\n')
+//      {break;}
+//      rdStr+=incomingByte;
+//      
+//      if(rdStr.length())
+//      {
+//      Serial.println(rdStr);}
+//    }}
   //if (rdStr.length())
   //  {Serial.println(rdStr.c_str());  
   //}
   //rdStr="";
-//  Serial.printf("% 08.3f, % 08.3f, % 08.3f,\t% 010.5f, % 010.5f, % 010.5f,\t% 015.12f, % 015.12f, % 015.12f, % 015.12f,\t %i, %i, %i\n",
-//    lin.x(),lin.y(),lin.z(),(float)event.orientation.x,(float)event.orientation.y, (float)event.orientation.z, quat.x(),quat.y(),
-//    quat.z(),quat.w(),gyro,accel,mag);
-//  
-  
-  // delay(BNO055_SAMPLERATE_DELAY_MS);
+  Serial. print( millis());
+  Serial.printf("\t% 08.3f, % 08.3f, % 08.3f,\t% 010.5f, % 010.5f, % 010.5f,\t% 015.12f, % 015.12f, % 015.12f, % 015.12f,\t %i, %i, %i\n",
+    lin.x(),lin.y(),lin.z(),(float)event.orientation.x,(float)event.orientation.y, (float)event.orientation.z, quat.x(),quat.y(),
+    quat.z(),quat.w(),gyro,accel,mag);
+  delay(BNO055_SAMPLERATE_DELAY_MS);
 }
