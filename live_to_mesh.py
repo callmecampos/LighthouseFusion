@@ -56,6 +56,7 @@ def main():
     # Streaming loop
     valid_try = False
     arr = []
+    depth_scale = 0.0010000000475
     try:
         if args.live or args.input:
             assert args.input or (args.live and not os.path.exists(args.directory)), "Output directory already exists."
@@ -187,7 +188,6 @@ def main():
                 arr.append([outfile_depth, outfile_color, pose])
 
                 if (False):
-
                     # Remove background - Set pixels further than clipping_distance to grey
                     grey_color = 153
                     depth_image_3d = np.dstack((depth_image,depth_image,depth_image)) #depth image is 1 channel, color is 3 channels
@@ -259,13 +259,13 @@ def main():
             print("Merging RGB and Depth images into ElasticFusion compatible format.")
 
             with cd(sys.path[0] + '/png_to_klg/build'): # generate the .klg file
-                os.system('./pngtoklg -w ' + args.directory + '/ -o ' + args.directory + '/realsense.klg')
+                os.system('./pngtoklg -w ' + args.directory + '/ -o ' + args.directory + '/realsense.klg -s 1300')
 
             if args.elastic: # if flag enabled, run Elastic Fusion on the generated .klg
                 print('Running ElasticFusion...')
                 with cd(sys.path[0] + '/ElasticFusion/GUI/build'):
                     if args.ground:
-                        os.system('./ElasticFusion -l ' + args.directory + '/realsense.klg -cal ' + args.directory + '/intrinsics.txt -p ' + args.directory + '/pose.freiburg')
+                        os.system('./ElasticFusion -l ' + args.directory + '/realsense.klg -f -cal ' + args.directory + '/intrinsics.txt -p ' + args.directory + '/pose.freiburg')
                     else:
                         os.system('./ElasticFusion -l ' + args.directory + '/realsense.klg -cal ' + args.directory + '/intrinsics.txt')
 
@@ -292,6 +292,6 @@ if __name__ == "__main__":
 
     assert args.fps == 15 or args.fps == 30 or args.fps == 60 or args.fps == 90, "An invalid FPS was provided, supported rates are: 15, 30, 60, 90"
     assert os.path.isfile(args.preset + ".json"), "Presets file does not exist."
-    assert (args.live and not args.input) or (not args.live and args.input), "Incompatible device input settings (choose live camera or .bag)"
+    assert not (args.live and args.input), "Incompatible device input settings (choose live camera or .bag)"
 
     main()
