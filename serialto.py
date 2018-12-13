@@ -1,7 +1,6 @@
 # native python stuff
 from __future__ import print_function
 from time import time
-
 import numpy as np
 import cv2
 import os, traceback, sys, argparse, json, io
@@ -58,6 +57,5 @@ try:
     time.sleep(10)
     t2._stop()
     t1._stop()
-
 finally:
     print("done")
