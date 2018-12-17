@@ -13,7 +13,6 @@ xyz = np.loadtxt("C:\\Users\\more3D\\Desktop\\acceldiv.txt").T[1:4]
 axyz = np.loadtxt("C:\\Users\\more3D\\Desktop\\acceldiv.txt").T[4:7]
 
 ax, ay, az = axyz[0], axyz[1], axyz[2]
-
 print(xyz)
 
 # Data for three-dimensional scattered points

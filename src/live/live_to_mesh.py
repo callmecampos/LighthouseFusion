@@ -18,6 +18,8 @@ import cv2
 # General OS, parameter parsing, and debugging
 import os, sys, serial, traceback, argparse, json, collections, shutil
 
+''' MARK: OS & Serial '''
+
 class cd:
     """Context manager for changing the current working directory"""
     def __init__(self, newPath):
@@ -29,6 +31,14 @@ class cd:
 
     def __exit__(self, etype, value, traceback):
         os.chdir(self.savedPath)
+
+def serial_data(port, baud):
+    ser = serial.Serial(port, baud)
+    val = ser.readline().decode("utf-8")
+    ser.close()
+    return time(), val
+
+''' MARK: RealSense '''
 
 DS5_product_ids = ["0AD1", "0AD2", "0AD3", "0AD4", "0AD5", "0AF6", "0AFE", "0AFF", "0B00", "0B01", "0B03", "0B07"]
 
@@ -46,16 +56,33 @@ def find_device_that_supports_advanced_mode():
             return dev
     raise Exception("No device that supports advanced mode was found")
 
-def serial_data(port, baud):
-    ser = serial.Serial(port, baud)
-    val = time(), ser.readline().decode("utf-8")
-    ser.close()
-    return val
+''' MARK: Quaternion Math '''
+
+# Reference: http://jinyongjeong.github.io/Download/SE3/jlblanco2010geometry3d_techrep.pdf
+
+def rotation_to_ypr(R):
+    pitch = np.arctan2(-R[2][0], np.sqrt(R[0][0] + R[1][0]))
+
+    # degenerate case
+    if np.abs(pitch) == 90:
+        sign = np.sign(pitch)
+        return np.arctan2(sign * R[1][2], sign * R[0][2]), pitch, 0
+
+    return np.arctan2(R[1][0], R[0][0]), pitch, np.arctan2(R[2][1], R[2][2])
+
+def ypr_to_quat(y, p, r):
+    qr = np.cos(r/2.)*np.cos(p/2.)*np.cos(y/2.) + np.sin(r/2.)*np.sin(p/2.)*np.sin(y/2.)
+    qx = np.sin(r/2.)*np.cos(p/2.)*np.cos(y/2.) - np.cos(r/2.)*np.sin(p/2.)*np.sin(y/2.)
+    qy = np.cos(r/2.)*np.sin(p/2.)*np.cos(y/2.) + np.sin(r/2.)*np.cos(p/2.)*np.sin(y/2.)
+    qz = np.cos(r/2.)*np.cos(p/2.)*np.sin(y/2.) - np.sin(r/2.)*np.sin(p/2.)*np.cos(y/2.)
+
+''' MARK: Main '''
 
 def main():
     # Streaming loop
     valid_try = False
     arr = []
+    depth_scale = 0.0010000000475
     try:
         if args.live or args.input:
             assert args.input or (args.live and not os.path.exists(args.directory)), "Output directory already exists."
@@ -136,7 +163,7 @@ def main():
 
             # We will be removing the background of objects more than
             #  clipping_distance_in_meters meters away
-            clipping_distance_in_meters = 5 #1 meter
+            clipping_distance_in_meters = 3
             clipping_distance = clipping_distance_in_meters / depth_scale
 
             # Create an align object
@@ -155,9 +182,13 @@ def main():
                 if not frames:
                     continue
 
+                t_prev = time()
                 if args.serial:
-                    pose = serial_data(args.port, args.baud)[1].split("\t")
-                    # TODO: check if tracking failed (time since last update?)
+                    data = serial_data(args.port, args.baud)
+                    if (data[0] - t_prev > 0.033): # if pose is old (<30Hz)
+                        print("Old pose at frame {}, skipping.".format(i))
+                        continue
+                    pose = data[1].split("\t")
                     if pose[0] == "Setup:" or pose[0] == "Error:":
                         print("Pose estimation not setup yet. Breaking.")
                         break
@@ -187,7 +218,6 @@ def main():
                 arr.append([outfile_depth, outfile_color, pose])
 
                 if (False):
-
                     # Remove background - Set pixels further than clipping_distance to grey
                     grey_color = 153
                     depth_image_3d = np.dstack((depth_image,depth_image,depth_image)) #depth image is 1 channel, color is 3 channels
@@ -241,7 +271,7 @@ def main():
                 cv2.imwrite(os.path.join(args.directory + "/depth/" + str(i).zfill(5) + ext), depth_image)
 
                 if i == 0:
-                    init_pose = (float(pose[4]), float(pose[6]), float(pose[5]))
+                    init_pose = (float(pose[4]), float(pose[6]), float(pose[5]), float(pose[8]), float(pose[9]), float(pose[10]))
 
                 # update the RGB-Depth associations file
                 with open(args.directory + '/associations.txt', 'a+') as f:
@@ -249,7 +279,7 @@ def main():
 
                 with open(args.directory + '/pose.freiburg', 'a+') as f:
                     f.write("{} {} {} {} {} {} {} {}\n".format(i, float(pose[4])-init_pose[0], float(pose[6])-init_pose[1], float(pose[5])-init_pose[2],
-                                                            pose[8], pose[9], pose[10], pose[11]))
+                                                            pose[8]-init_pose[3], pose[9]-init_pose[4], pose[10]-init_pose[5], pose[11]))
 
                 print('Progress: {}/{} pairs saved.'.format(i, len(arr)), end='\r')
 
@@ -258,16 +288,16 @@ def main():
         if valid_try and not args.to_png:
             print("Merging RGB and Depth images into ElasticFusion compatible format.")
 
-            with cd(sys.path[0] + '/png_to_klg/build'): # generate the .klg file
-                os.system('./pngtoklg -w ' + args.directory + '/ -o ' + args.directory + '/realsense.klg')
+            with cd(sys.path[0] + '/../../png_to_klg/build'): # generate the .klg file
+                os.system('./pngtoklg -w ' + args.directory + '/ -o ' + args.directory + '/realsense.klg -t -s 1250')
 
             if args.elastic: # if flag enabled, run Elastic Fusion on the generated .klg
                 print('Running ElasticFusion...')
-                with cd(sys.path[0] + '/ElasticFusion/GUI/build'):
+                with cd(sys.path[0] + '/../../ElasticFusion/GUI/build'):
                     if args.ground:
-                        os.system('./ElasticFusion -l ' + args.directory + '/realsense.klg -cal ' + args.directory + '/intrinsics.txt -p ' + args.directory + '/pose.freiburg')
+                        os.system('./ElasticFusion -l ' + args.directory + '/realsense.klg -d 8 -f -cal ' + args.directory + '/intrinsics.txt -p ' + args.directory + '/pose.freiburg')
                     else:
-                        os.system('./ElasticFusion -l ' + args.directory + '/realsense.klg -cal ' + args.directory + '/intrinsics.txt')
+                        os.system('./ElasticFusion -l ' + args.directory + '/realsense.klg -d 8 -f -cal ' + args.directory + '/intrinsics.txt')
 
         if args.delete and args.live:
             shutil.rmtree(args.directory)
@@ -292,6 +322,6 @@ if __name__ == "__main__":
 
     assert args.fps == 15 or args.fps == 30 or args.fps == 60 or args.fps == 90, "An invalid FPS was provided, supported rates are: 15, 30, 60, 90"
     assert os.path.isfile(args.preset + ".json"), "Presets file does not exist."
-    assert (args.live and not args.input) or (not args.live and args.input), "Incompatible device input settings (choose live camera or .bag)"
+    assert not (args.live and args.input), "Incompatible device input settings (choose live camera or .bag)"
 
     main()
