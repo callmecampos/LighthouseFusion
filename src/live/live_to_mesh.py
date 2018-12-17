@@ -75,6 +75,8 @@ def ypr_to_quat(y, p, r):
     qx = np.sin(r/2.)*np.cos(p/2.)*np.cos(y/2.) - np.cos(r/2.)*np.sin(p/2.)*np.sin(y/2.)
     qy = np.cos(r/2.)*np.sin(p/2.)*np.cos(y/2.) + np.sin(r/2.)*np.cos(p/2.)*np.sin(y/2.)
     qz = np.cos(r/2.)*np.cos(p/2.)*np.sin(y/2.) - np.sin(r/2.)*np.sin(p/2.)*np.cos(y/2.)
+    
+    return qx, qy, qz, qr
 
 ''' MARK: Main '''
 
@@ -185,13 +187,17 @@ def main():
                 t_prev = time()
                 if args.serial:
                     data = serial_data(args.port, args.baud)
-                    if (data[0] - t_prev > 0.033): # if pose is old (<30Hz)
+                    if (data[0] - t_prev > 0.1): # if pose is old
                         print("Old pose at frame {}, skipping.".format(i))
                         continue
                     pose = data[1].split("\t")
-                    if pose[0] == "Setup:" or pose[0] == "Error:":
-                        print("Pose estimation not setup yet. Breaking.")
-                        break
+                    if len(pose) != 12:
+                        print("Serial data not complete at frame {}, skipping.".format(i))
+                        pose = arr[-1][2]
+                    else:
+                        if pose[0] == "Setup:" or pose[0] == "Error:":
+                            print("Pose estimation not setup yet. Breaking.")
+                            break
 
                 # Align the depth frame to color frame
                 aligned_frames = align.process(frames)
@@ -276,10 +282,12 @@ def main():
                 # update the RGB-Depth associations file
                 with open(args.directory + '/associations.txt', 'a+') as f:
                     f.write(str(i) + ' ' + './depth/' + str(i).zfill(5) + ext + ' ' + str(i) + ' ' + "./rgb/" + str(i).zfill(5) + ext + "\n")
+                    
+                quat = ypr_to_quat(float(pose[8])-init_pose[3], float(pose[9])-init_pose[4], float(pose[10])-init_pose[5])
 
                 with open(args.directory + '/pose.freiburg', 'a+') as f:
                     f.write("{} {} {} {} {} {} {} {}\n".format(i, float(pose[4])-init_pose[0], float(pose[6])-init_pose[1], float(pose[5])-init_pose[2],
-                                                            pose[8]-init_pose[3], pose[9]-init_pose[4], pose[10]-init_pose[5], pose[11]))
+                                                            quat[0], quat[1], quat[2], quat[3]))
 
                 print('Progress: {}/{} pairs saved.'.format(i, len(arr)), end='\r')
 

@@ -4,7 +4,7 @@
 #include <utility/imumaths.h>
 
 #define INERTIAL true
-#define DEBUG false
+#define DEBUG true
 
 /* This driver reads raw data from the BNO055
 
@@ -28,14 +28,13 @@ uint8_t sys, gyro=0, accel=0, mag = 0;
 
 const unsigned int DATA_LEN = 200;
 char data1[DATA_LEN];
-char data2[DATA_LEN];
-unsigned int ind1, ind2, check1, check2;
-boolean reading1, reading2;
+unsigned int ind1, check1;
+boolean reading1;
 
 void setup() {
   /* setup serial, UART, and 9DoF IMU */
   
-  Serial.begin(115200); Serial1.begin(115200); Serial2.begin(115200);
+  Serial.begin(115200); Serial1.begin(115200);
 
   if (INERTIAL) {
     pinMode(ledPin,OUTPUT);
@@ -73,26 +72,20 @@ void setup() {
   }
   Serial.println("Waiting for UART communication to activate.");
 
-  while (!Serial1 || !Serial2)  {
+  while (!Serial1)  {
     ; // wait for serial to connect
   }
 
   setupFlag();
   Serial.println("UART connection established between Teensies. Setup complete. Now running.");
-  ind1 = 0; ind2 = 0; check1 = 0; check2 = 0;
-  reading1 = false; reading2 = false;
+  ind1 = 0; check1 = 0;
+  reading1 = false;
 }
 
 void loop() {
   // build up poses while UART ports are available
-  while (Serial1.available() || Serial2.available()) {
-    if (Serial1.available()) {
-      readSerial1(); // back diode
-    }
-    
-    if (Serial2.available()) {
-      readSerial2(); // front diode
-    }
+  while (Serial1.available()) {
+    readSerial1();
   }
 }
 
@@ -117,7 +110,7 @@ void readSerial1() {
         String myString = String(data1);
         if (check1 == 6) { // check if tracking
           // read from IMU and send over 6DoF pose
-          Serial.print("Back:\t");
+          Serial.print("6DOF:\t");
           Serial.print(myString);
           if (INERTIAL) {
             Serial.print("\t");
@@ -133,44 +126,6 @@ void readSerial1() {
   } else {
     errorFlag();
     Serial.println("Hit end of data array 1. Try extending capacity."); reading1 = false; ind1 = 0; check1 = 0;
-  }
-}
-
-void readSerial2() {
-  if (ind2 < DATA_LEN-1) {
-    char inChar = Serial2.read(); // Read a character
-    if (inChar == '+') {
-      reading2 = true;
-      ind2 = 0;
-    }
-  
-    if (reading2) {
-      data2[ind2] = inChar;
-      ind2 += 1;
-      if (inChar == '\n') {
-        reading2 = false;
-        ind2 -= 1; // remove endline
-        data2[ind2] = '\0'; // null terminate that bih
-        
-        String myString = String(data2);
-        if (check2 == 6) { // check if tracking
-          // read from IMU and send over 6DoF pose
-          Serial.print("Front:\t");
-          Serial.print(myString);
-          if (INERTIAL) {
-            Serial.print("\t");
-            readIMU(DEBUG);
-          }
-          Serial.println();
-        }
-        reading2 = false; ind2 = 0; check2 = 0; // reset params
-      } else if (inChar == '\t') { // delimiter
-        check2 += 1;
-      }
-    }
-  } else {
-    errorFlag();
-    Serial.println("Hit end of data array 2. Try extending capacity."); reading2 = false; ind2 = 0; check2 = 0;
   }
 }
 
@@ -194,11 +149,12 @@ void readIMU(boolean euler) {
   
   bno.getCalibration(&sys, &gyro, &accel, &mag);
   if (euler) {
-    Serial.printf("%010.5f,%010.5f,%010.5f\t", (float) event.orientation.x, (float) event.orientation.y, (float) event.orientation.z); // print fused orientation values
-    Serial.printf("%010.5f,%010.5f,%010.5f\t", (float) event.orientation.x - (float) (180.0/3.14159) * quat.toEuler().x(), (float) event.orientation.y - (float) (180.0/3.14159) * quat.toEuler().y(), (float) event.orientation.z - (float) (180.0/3.14159) * quat.toEuler().z());
+    Serial.printf("%010.5f\t%010.5f\t%010.5f\t", (float) event.orientation.x, (float) event.orientation.y, (float) event.orientation.z); // print fused orientation values
+    // Serial.printf("%010.5f,%010.5f,%010.5f\t", (float) event.orientation.x - (float) (180.0/3.14159) * quat.toEuler().x(), (float) event.orientation.y - (float) (180.0/3.14159) * quat.toEuler().y(), (float) event.orientation.z - (float) (180.0/3.14159) * quat.toEuler().z());
+  } else {
+    Serial.printf("%015.12f\t%015.12f\t%015.12f\t%015.12f\t", quat.x(), quat.y(), quat.z(), quat.w()); // print quaternions
+    Serial.printf("%i,%i,%i", gyro, accel, mag); // print calibration values
   }
-  Serial.printf("%015.12f\t%015.12f\t%015.12f\t%015.12f\t", quat.x(), quat.y(), quat.z(), quat.w()); // print quaternions
-  Serial.printf("%i,%i,%i", gyro, accel, mag); // print calibration values
 }
 
 // MARK: Serial flags
