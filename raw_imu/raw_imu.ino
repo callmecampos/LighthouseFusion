@@ -43,7 +43,7 @@ float time = .001*BNO055_SAMPLERATE_DELAY_MS*average;
 void movement_end_check(void);
 void setup(void)
 {
-  Serial.begin(9600);
+  Serial.begin(115200);
   Serial.println("Orientation Sensor Raw Data Test"); Serial.println("");
   pinMode(ledPin,OUTPUT);
   /* Initialise the sensor */
@@ -118,7 +118,8 @@ void loop(void)
      sstatey=sstatey/1024;
      sstatez=sstatez/1024;
      digitalWrite(ledPin,HIGH);
-     Serial.printf("CALIBRATED Part B wait 5 seconds");  
+     Serial.printf("CALIBRATED Part B wait 10 seconds\n");
+     delay(10000); 
   }
   do{
   lin = bno.getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
@@ -181,8 +182,8 @@ void loop(void)
   velocityx[0] = velocityx[1]; //Same done for the velocity variable
   velocityy[0] = velocityy[1];
   velocityz[0] = velocityz[1];
-  Serial. print( millis());
-  Serial.printf("% 08.3f, % 08.3f, % 08.3f,\t% 08.3f, % 08.3f, % 08.3f,\t% 015.12f, % 015.12f, % 015.12f, % 015.12f,\t %i, %i, %i\n",positionX[1],positionY[1],positionZ[1],lin.x(),lin.y(),lin.z(),quat.x(),quat.y(),quat.z(),quat.w(),gyro,accel,mag);
+  Serial.print(millis());
+  Serial.printf("\t% 08.3f\t% 08.3f\t% 08.3f\t% 08.3f\t% 08.3f\t% 08.3f\t% 015.12f\t% 015.12f\t% 015.12f\t% 015.12f\t%i,%i,%i\n",positionX[1],positionY[1],positionZ[1],lin.x(),lin.y(),lin.z(),quat.x(),quat.y(),quat.z(),quat.w(),gyro,accel,mag);
   
 
 
