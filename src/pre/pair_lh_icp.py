@@ -1,5 +1,5 @@
 icp_quat = []
-with open("/home/more3d/lighthouse-slam/pilot/meter4test/realsense.klg.freiburg", "r") as f:
+with open("/home/more3d/lighthouse-slam/pilot/loop4/realsense.klg.freiburg", "r") as f:
     lines = f.readlines()
 
     for line in lines:
@@ -7,7 +7,7 @@ with open("/home/more3d/lighthouse-slam/pilot/meter4test/realsense.klg.freiburg"
         quats = data[4:8]
         icp_quat.append(quats)
 
-with open("/home/more3d/lighthouse-slam/pilot/meter4test/pose.freiburg", 'r+') as f:
+with open("/home/more3d/lighthouse-slam/pilot/loop4/pose.freiburg", 'r+') as f:
     lines = f.readlines()
     f.seek(0)
     f.truncate()

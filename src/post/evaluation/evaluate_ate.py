@@ -181,7 +181,7 @@ if __name__=="__main__":
         fig = plt.figure()
         ax = fig.add_subplot(111)
         plot_traj(ax,first_stamps,first_xyz_full.transpose().A,'-',"black","ground truth")
-        plot_traj(ax,second_stamps,second_xyz_full.transpose().A,'-',"blue","estimated")
+        plot_traj(ax,second_stamps,second_xyz_full_aligned.transpose().A,'-',"blue","estimated")
 
         if args.diff:
             label="difference"
