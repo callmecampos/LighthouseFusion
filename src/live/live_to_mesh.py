@@ -2,13 +2,6 @@
 from __future__ import print_function
 from time import time
 
-## License: Apache 2.0. See LICENSE file in root directory.
-## Copyright(c) 2017 Intel Corporation. All Rights Reserved.
-
-#####################################################
-##              Align Depth to Color               ##
-#####################################################
-
 # First import the library
 import pyrealsense2 as rs
 # Import Numpy for easy array manipulation
@@ -178,7 +171,7 @@ def main():
             pose, ext = None, '.png' # '.jpg'
 
             t0 = time()
-            while i < 1200:
+            while i < args.frames:
                 # Get frameset of color and depth
                 frames = pipeline.wait_for_frames()
                 if not frames:
@@ -325,9 +318,10 @@ if __name__ == "__main__":
     parser.add_argument("--fps", type=int, help="frame rate to run the camera at", default=30)
     parser.add_argument("--preset", type=str, help="RealSense camera presets", default='high_accuracy')
     parser.add_argument("--delete", help="Delete the dataset directory after running.", action='store_true')
-
+    parser.add_argument("-f", "--frames", help="Number of frames to capture", default=1200)
     args = parser.parse_args()
 
+    assert args.frames > 1, "Invalid frame count."
     assert args.fps == 15 or args.fps == 30 or args.fps == 60 or args.fps == 90, "An invalid FPS was provided, supported rates are: 15, 30, 60, 90"
     assert os.path.isfile(args.preset + ".json"), "Presets file does not exist."
     assert not (args.live and args.input), "Incompatible device input settings (choose live camera or .bag)"
