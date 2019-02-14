@@ -50,18 +50,15 @@ class Poser:
         A = np.zeros((self.num_diodes()*2, 8))
         b = np.array(xy_n).ravel()
         for r in range(0, self.num_diodes()*2, 2):
-            i = r / 2
+            i = int(r / 2)
             A[r] = [self.diode_x(i), self.diode_y(i), 1, 0, 0, 0, \
                         -self.diode_x(i)*xy_n[i][0], -self.diode_y(i)*xy_n[i][0]]
             A[r+1] = [0, 0, 0, self.diode_x(i), self.diode_y(i), 1, \
                         -self.diode_x(i)*xy_n[i][1], -self.diode_y(i)*xy_n[i][1]]
 
-        print(A.shape)
-        print(b.shape)
-
         try:
-            _h = np.linalg.solve(A, b)
-            # H = _h.append(1).reshape((3, 3))
+            # _h = np.linalg.solve(A, b)
+            _h = np.linalg.lstsq(A, b)[0]
 
             s = Poser.recover_scale(_h)
             x, y, z = s*_h[2], s*_h[5], -s
@@ -72,8 +69,6 @@ class Poser:
             estimator = LMOptimization(self, xy_n)
             estimator.compute_pose()
             return estimator.pose()
-            # get pose
-            # _h = scipy.optimize.least_squares(A, b, method="lm") # FIXME:
 
     def num_diodes(self):
         return len(self.diode_array)
@@ -134,9 +129,16 @@ class LMOptimization:
         f = self.evaluate_objective()
         J_g = self.compute_jacobian_g()
         J_f = self.compute_jacobian_f()
+
+        print(J_g)
+        print(J_f)
+
         J = np.dot(J_f, J_g)
 
+        print(J)
+
         JTJ = np.dot(J.T, J)
+
         self.p += np.dot( np.linalg.inv(JTJ + self.lda*np.diagonal(JTJ)), b - f )
 
     def evaluate_objective(self):
@@ -144,7 +146,7 @@ class LMOptimization:
         h1, h2, h3, h4, h5, h6, h7, h8, h9 = self.g()
         for i in range(self.poser.num_diodes()):
             xn_i, yn_i = self.angles[i]
-            x_i, y_i = self.poser.x(i), self.poser.y(i)
+            x_i, y_i = self.poser.diode_x(i), self.poser.diode_y(i)
 
             f0 = (h1*x_i + h2*y_i + h3) / (h7*x_i + h8*y_i + h9)
             f1 = (h4*x_i + h5*y_i + h6) / (h7*x_i + h8*y_i + h9)
@@ -198,14 +200,14 @@ class LMOptimization:
                 cos(p.theta_y())*cos(p.theta_z()) - \
                     sin(p.theta_x())*sin(p.theta_y())*sin(p.theta_z()),
                 -cos(p.theta_x())*sin(p.theta_z()),
-                p.x,
+                p.x(),
                 cos(p.theta_y())*sin(p.theta_z()) + \
                     sin(p.theta_x())*sin(p.theta_y())*cos(p.theta_z()),
                 cos(p.theta_x())*cos(p.theta_z()),
-                p.y,
+                p.y(),
                 cos(p.theta_x())*sin(p.theta_y()),
                 -sin(p.theta_x()),
-                -p.z
+                -p.z()
             ])
         elif self.p.quat:
             return None # FIXME: implement for quaternion representation
