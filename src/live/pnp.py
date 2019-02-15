@@ -109,12 +109,13 @@ class Poser:
         return np.column_stack((r1, r2, r3))
 
 class LMOptimization:
-    def __init__(self, poser, angles,
-                    p0=Pose(1, 1, 1, euler=(0, 0, 0)),
+    def __init__(self, poser, angles, b,
+                    p0=Pose(0, 0, -1, euler=(0.5, 0.5, 0.5)),
                     lda=1): # FIXME: play with best seed and lambda
         assert poser.num_diodes() == 4 # TODO: make optimization work for n > 4 lol
         self.poser = poser
         self.angles = angles
+        self.b = b
         self.p = p0
         self.lda = lda
 
@@ -139,9 +140,12 @@ class LMOptimization:
 
         JTJ = np.dot(J.T, J)
 
-        self.p += np.dot( np.linalg.inv(JTJ + self.lda*np.diagonal(JTJ)), b - f )
+        self.p += np.dot( np.linalg.inv(JTJ + self.lda*np.diagonal(JTJ)), self.b - f )
 
     def evaluate_objective(self):
+        return np.zeros((8,)) # FIXME
+
+    def evaluate_objective_error(self):
         result = 0
         h1, h2, h3, h4, h5, h6, h7, h8, h9 = self.g()
         for i in range(self.poser.num_diodes()):
@@ -154,7 +158,7 @@ class LMOptimization:
             result += (xn_i - f0)**2 + (yn_i - f1)**2
         return result
 
-    def compute_jacobian_g(self):
+    def compute_jacobian_g(self): # do math by hand...
         if self.p.euler:
             x, y, z = self.p.euler
             return np.array([
@@ -176,7 +180,7 @@ class LMOptimization:
         else:
             return None # rotation matrix representation?
 
-    def compute_jacobian_f(self):
+    def compute_jacobian_f(self): # do math by hand...
         h1, h2, h3, h4, h5, h6, h7, h8, h9 = self.g()
         rows = [
             np.array([
@@ -194,22 +198,23 @@ class LMOptimization:
         return np.vstack(tuple(rows))
 
     def g(self):
-        p = self.p # FIXME: I'm lazy lmao
-        if p.euler:
+        x, y, z = self.p.theta_x(), self.p.theta_y(), self.p.theta_z()
+        if self.p.euler:
             return np.array([
-                cos(p.theta_y())*cos(p.theta_z()) - \
-                    sin(p.theta_x())*sin(p.theta_y())*sin(p.theta_z()),
-                -cos(p.theta_x())*sin(p.theta_z()),
-                p.x(),
-                cos(p.theta_y())*sin(p.theta_z()) + \
-                    sin(p.theta_x())*sin(p.theta_y())*cos(p.theta_z()),
-                cos(p.theta_x())*cos(p.theta_z()),
-                p.y(),
-                cos(p.theta_x())*sin(p.theta_y()),
-                -sin(p.theta_x()),
-                -p.z()
+                cos(y)*cos(z) - sin(x)*sin(y)*sin(z),
+                -cos(x)*sin(z),
+                self.p.x(),
+                cos(y)*sin(z) + sin(x)*sin(y)*cos(z),
+                cos(x)*cos(z),
+                self.p.y(),
+                cos(x)*sin(y),
+                -sin(x),
+                -self.p.z()
             ])
         elif self.p.quat:
             return None # FIXME: implement for quaternion representation
         else:
             return None # rotation matrix representation?
+
+if __name__ == "__main__":
+    print("Building tracker...")

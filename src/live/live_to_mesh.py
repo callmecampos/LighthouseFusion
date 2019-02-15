@@ -68,7 +68,7 @@ def ypr_to_quat(y, p, r):
     qx = np.sin(r/2.)*np.cos(p/2.)*np.cos(y/2.) - np.cos(r/2.)*np.sin(p/2.)*np.sin(y/2.)
     qy = np.cos(r/2.)*np.sin(p/2.)*np.cos(y/2.) + np.sin(r/2.)*np.cos(p/2.)*np.sin(y/2.)
     qz = np.cos(r/2.)*np.cos(p/2.)*np.sin(y/2.) - np.sin(r/2.)*np.sin(p/2.)*np.cos(y/2.)
-    
+
     return qx, qy, qz, qr
 
 ''' MARK: Main '''
@@ -275,7 +275,7 @@ def main():
                 # update the RGB-Depth associations file
                 with open(args.directory + '/associations.txt', 'a+') as f:
                     f.write(str(i) + ' ' + './depth/' + str(i).zfill(5) + ext + ' ' + str(i) + ' ' + "./rgb/" + str(i).zfill(5) + ext + "\n")
-                    
+
                 quat = ypr_to_quat(float(pose[8])-init_pose[3], float(pose[9])-init_pose[4], float(pose[10])-init_pose[5])
 
                 with open(args.directory + '/pose.freiburg', 'a+') as f:
