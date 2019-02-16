@@ -1,3 +1,4 @@
+import serial, time, argparse, ast
 import numpy as np
 from math import sin, cos, tan
 
@@ -13,6 +14,9 @@ class Pose:
         elif euler:
             self.euler = euler
         self.R = R_mat
+
+    def __repr__(self):
+        return "(x: {}, y: {}, z: {})".format(self.x(), self.y(), self.z())
 
     def x(self):
         return self._x
@@ -41,12 +45,12 @@ class Poser:
     def __init__(self, *args):
         self.diode_array = [loc for loc in args]
 
-    def get_pose(self, *args):
+    def get_pose(self, angles):
         '''
         Triangulate 6-DoF pose of 4 diode 1 lighthouse system given
         azimuth and elevation angles of each diode.
         '''
-        xy_n = [(tan(u), tan(v)) for u, v in args] # optimize for numpy array?
+        xy_n = [(tan(u), tan(v)) for u, v in angles]
         A = np.zeros((self.num_diodes()*2, 8))
         b = np.array(xy_n).ravel()
         for r in range(0, self.num_diodes()*2, 2):
@@ -103,7 +107,6 @@ class Poser:
         r1 = np.array([r11, r21, r31])
         r2 = _r2 / np.linalg.norm(_r2)
 
-        print(r1, r2)
         r3 = np.cross(r1, r2)
 
         return np.column_stack((r1, r2, r3))
@@ -216,5 +219,31 @@ class LMOptimization:
         else:
             return None # rotation matrix representation?
 
+def serial_data(port, baudrate):
+    ser = serial.Serial(port, baudrate)
+
+    while True:
+        yield ser.readline()
+
+    ser.close()
+
 if __name__ == "__main__":
     print("Building tracker...")
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-p", "--port", type=str, help="The serial port.", default="/dev/cu.usbmodem4942630")
+    parser.add_argument("-b", "--baud", type=int, help="The baud rate.", default=115200)
+    args = parser.parse_args()
+
+    x, y = .048, .0475
+    tracker = Poser((-x, y), (x, y), (-x, -y), (x, -y))
+
+    i, p0 = 0, (0, 0, 0, 0)
+    for line in serial_data(args.port, args.baud):
+        angles = ast.literal_eval(line.decode("utf-8"))
+
+        tracking = (69.0, 69.0) not in angles
+        if tracking:
+            print(tracker.get_pose(angles), end="\r")
+        else:
+            print("Not tracking...", end="\r")
