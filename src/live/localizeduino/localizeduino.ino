@@ -4,7 +4,9 @@
 #include <utility/imumaths.h>
 
 #define INERTIAL false
-#define DEBUG true
+#define VERBOSE false
+#define DEBUG false
+#define LOST_TRACKING 69
 
 /* This driver reads raw data from the BNO055
 
@@ -32,7 +34,7 @@ char data2[DATA_LEN];
 unsigned int ind1, ind2, check1, check2;
 boolean reading1, reading2;
 
-float d1[2]; float d2[2]; float d3[2]; float d4[2];
+float d1[2] = {}; float d2[2] = {}; float d3[2] = {}; float d4[2] = {}; int correspondence_count = 0;
 
 void setup() {
   /* setup serial, UART, and 9DoF IMU */
@@ -100,6 +102,28 @@ void loop() {
 
 // MARK: UART comms
 
+void printAngleData() {
+  if (correspondence_count == 0b1111) {
+    Serial.printf("[(%f, %f), (%f, %f), (%f, %f), (%f, %f)]\n", d1[0], d1[1], d2[0], d2[1], d3[0], d3[1], d4[0], d4[1]);
+    correspondence_count = 0;
+  }
+}
+
+String getValue(String data, char separator, int index) {
+    int found = 0;
+    int strIndex[] = { 0, -1 };
+    int maxIndex = data.length() - 1;
+
+    for (int i = 0; i <= maxIndex && found <= index; i++) {
+        if (data.charAt(i) == separator || i == maxIndex) {
+            found++;
+            strIndex[0] = strIndex[1] + 1;
+            strIndex[1] = (i == maxIndex) ? i+1 : i;
+        }
+    }
+    return found > index ? data.substring(strIndex[0], strIndex[1]) : "";
+}
+
 void readSerial1() {
   if (ind1 < DATA_LEN-1) {
     char inChar = Serial1.read(); // Read a character
@@ -119,13 +143,36 @@ void readSerial1() {
         String myString = String(data1);
         if (check1 == 6) { // check if tracking
           // read from IMU and send over 6DoF pose
-          Serial.print("T1:\t");
-          Serial.print(myString);
-          if (INERTIAL) {
-            Serial.print("\t");
-            readIMU(DEBUG);
+          if (VERBOSE) {
+            Serial.print("T1:\t");
+            Serial.print(myString);
+            if (INERTIAL) {
+              Serial.print("\t");
+              readIMU(DEBUG);
+            }
+            Serial.println();
+          } else {
+            if (getValue(myString, '\t', 0) == "+ANG0") {
+              String d1_0 = getValue(myString, '\t', 3);
+              String d1_1 = getValue(myString, '\t', 4);
+              if (d1_0 != "" && d1_1 != "") {
+                d1[0] = d1_0.toFloat(); d1[1] = d1_1.toFloat();
+              } else {
+                d1[0] = LOST_TRACKING; d1[1] = LOST_TRACKING;
+              }
+              correspondence_count |= 0b1;
+            } else {
+              String d2_0 = getValue(myString, '\t', 3);
+              String d2_1 = getValue(myString, '\t', 4);
+              if (d2_0 != "" && d2_1 != "") {
+                d2[0] = d2_0.toFloat(); d2[1] = d2_1.toFloat();
+              } else {
+                d2[0] = LOST_TRACKING; d2[1] = LOST_TRACKING;
+              }
+              correspondence_count |= 0b10;
+            }
+            printAngleData();
           }
-          Serial.println();
         }
         reading1 = false; ind1 = 0; check1 = 0; // reset params
       } else if (inChar == '\t') { // delimiter
@@ -157,13 +204,36 @@ void readSerial2() {
         String myString = String(data2);
         if (check2 == 6) { // check if tracking
           // read from IMU and send over 6DoF pose
-          Serial.print("T2:\t");
-          Serial.print(myString);
-          if (INERTIAL) {
-            Serial.print("\t");
-            readIMU(DEBUG);
+          if (VERBOSE) {
+            Serial.print("T2:\t");
+            Serial.print(myString);
+            if (INERTIAL) {
+              Serial.print("\t");
+              readIMU(DEBUG);
+            }
+            Serial.println();
+          } else {
+            if (getValue(myString, '\t', 0) == "+ANG0") {
+              String d3_0 = getValue(myString, '\t', 3);
+              String d3_1 = getValue(myString, '\t', 4);
+              if (d3_0 != "" && d3_1 != "") {
+                d3[0] = d3_0.toFloat(); d3[1] = d3_1.toFloat();
+              } else {
+                d3[0] = LOST_TRACKING; d3[1] = LOST_TRACKING;
+              }
+              correspondence_count |= 0b100;
+            } else {
+              String d4_0 = getValue(myString, '\t', 3);
+              String d4_1 = getValue(myString, '\t', 4);
+              if (d4_0 != "" && d4_1 != "") {
+                d4[0] = d4_0.toFloat(); d4[1] = d4_1.toFloat();
+              } else {
+                d4[0] = LOST_TRACKING; d4[1] = LOST_TRACKING;
+              }
+              correspondence_count |= 0b1000;
+            }
+            printAngleData();
           }
-          Serial.println();
         }
         reading2 = false; ind2 = 0; check2 = 0; // reset params
       } else if (inChar == '\t') { // delimiter
@@ -204,7 +274,7 @@ void readIMU(boolean euler) {
   }
 }
 
-// MARK: Serial flags
+// MARK: Serial flags & Utils
 
 void dataFlag() {
   Serial.print("Data:\n");
